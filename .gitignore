@@ -1,3 +1,6 @@
 .venv/
 __pycache__/
 .DS_Store
+
+# Keep GarageBand editing projects local; use exported WAV files for analysis.
+*.band/
