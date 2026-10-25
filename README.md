@@ -7,7 +7,8 @@ arrays and interpretable signal measurements before introducing machine learning
 
 `main.py` loads a WAV recording, prints its sample rate, array shape, datatype,
 duration, and first five time steps, then calculates left-channel RMS amplitude
-and displays a waveform.
+and displays a waveform. A second plot zooms into 3.00–3.05 seconds, with RMS
+reported separately for that interval.
 
 The included `data/raw/Test_1_Cmaj.wav` is a personally recorded single C note,
 despite the filename suggesting a chord. It is stereo, 44,100 Hz, 16-bit PCM,
@@ -30,7 +31,7 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-Close the plot window to finish the script. If the environment already exists,
+Close both plot windows to finish the script. If the environment already exists,
 activate it without creating it again. Development started with Python 3.13.
 
 ## Measurements and limitations
@@ -40,6 +41,11 @@ activate it without creating it again. Development started with Python 3.13.
 - Duration is the number of rows divided by the sample rate.
 - RMS is `sqrt(mean(signal ** 2))`. The current measurement uses the entire left
   channel, including silence, and is approximately 0.1219 for this recording.
+- The selected 3.00–3.05 second interval contains 2,205 samples per channel and
+  has left-channel RMS approximately 0.1074. An earlier measurement of
+  1.00–1.05 seconds gave approximately 0.3946. These equal-length windows show
+  the decrease in signal level as the note decays; neither represents the whole
+  recording. Changing the selected interval does not change whole-recording RMS.
 - RMS describes digital signal level, not perceived loudness or pitch. Silence
   and recording gain affect it, so comparisons need consistent conditions.
 - The script currently uses a fixed file path and assumes stereo input. It does
