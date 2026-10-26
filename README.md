@@ -5,6 +5,11 @@ arrays and interpretable signal measurements before introducing machine learning
 
 ## Current milestone
 
+`compare_recordings.py` loops through the labeled dry takes, estimates each note's
+onset sample, and compares the next 8 seconds using 50 ms RMS windows. It saves
+comparison plots, onset-review plots, and the original sample indices behind
+every measurement. It uses the existing NumPy, SoundFile, and Matplotlib dependencies.
+
 `main.py` loads a WAV recording, prints its sample rate, array shape, datatype,
 duration, and first five time steps, then calculates left-channel RMS amplitude
 and displays a waveform. A second plot zooms into 3.00–3.05 seconds, with RMS
@@ -33,6 +38,93 @@ python main.py
 
 Close both plot windows to finish the script. If the environment already exists,
 activate it without creating it again. Development started with Python 3.13.
+
+## Compare recordings
+
+For the smaller, guided learning step, start with
+`01_understanding_quiet.ipynb`. It uses one C take, an editable candidate quiet
+interval, and visible RMS arithmetic. It does not change the batch detector.
+
+Notebook setup from the project folder:
+
+```bash
+.venv/bin/python -m pip install -r requirements-notebook.txt
+.venv/bin/python -m ipykernel install --user --name guitar-ml --display-name "Guitar ML (.venv)"
+```
+
+Install Microsoft's **Jupyter** extension (`ms-toolsai.jupyter`) in VS Code,
+open the notebook, and select **Guitar ML (.venv)** as its kernel. A kernel is
+the Python process that runs notebook cells. Run the lesson from top to bottom,
+one cell at a time; rerun later cells after changing the quiet-region selection.
+
+If notebook setup is unavailable, the same lesson runs with existing dependencies:
+
+```bash
+.venv/bin/python quiet_region_lesson.py
+```
+
+Close each plot to continue to the next step. The notebook's saved example
+outputs were checked by executing its code cells in order with the project Python;
+they do not establish that a Jupyter kernel is installed or working.
+
+With the environment activated, run this from the project folder:
+
+```bash
+python compare_recordings.py
+```
+
+The loop finds `data/raw/*_note_dry_take*.wav`, including future D/G/B/high-E
+takes with that naming convention. It uses the left channel for stereo or the
+only channel for mono. The older `Test_1_Cmaj.wav` is excluded because its
+recording/processing conditions were not established.
+
+Two figures open, and copies are saved in `outputs/amplitude_comparison/`:
+
+- `comparisons.png`: takes grouped by note, with 8-second RMS curves and a
+  waveform close-up from 0.10–0.15 seconds after onset. Each column shares its
+  amplitude scale across notes. Original signal levels are preserved.
+- `onset_review.png`: estimated/manual start markers on each waveform, using
+  the original file's timeline. Inspect these before trusting alignment.
+- `measurements.csv`: filename, note label, sample rate, onset index/time/method,
+  background RMS, detection threshold, each window's original start and exclusive
+  stop indices, relative midpoint time, RMS, and absolute peak.
+
+For onset sample `n0`, a window starts at `n0 + offset_samples`. Its relative time
+is `(sample_index - n0) / sample_rate`. At 44,100 Hz, each 50 ms window has 2,205
+samples, giving 160 windows over 8 seconds. The final incomplete window is
+dropped if you change the duration; no zero-padding or per-file normalization is used.
+Recordings without the full comparison span are skipped with an explanation.
+
+The onset detector assumes the first 0.5 seconds are quiet. It looks for three
+consecutive 10 ms frames with RMS above six times the initial background RMS
+(with a small absolute floor), then refines the start to a sample threshold
+crossing near that transition. This is a simple energy-based estimate, not an
+exact physical onset or validated benchmark. It can mistake handling noise for
+a note or miss a soft attack. Only the first sustained event is analyzed.
+
+If an onset marker is wrong, enter the reviewed **original-file sample index**
+in `ONSET_OVERRIDES` at the top of the script, for example
+`{"A_note_dry_take01.wav": 90000}` (illustrative, not a recommended correction).
+The CSV labels that onset as manual. The plotted dotted lines show the detection
+threshold; they are not confidence bounds. Manual overrides do not require a
+quiet lead-in, but background statistics still describe the first half-second.
+
+Onset alignment does not align waveform phase or establish that two notes have
+the same pitch. Note names come from filenames. Differences in picking, gain,
+effects, pickup, and export volume can all affect these measurements. The C
+export volume was adjusted during setup, so cross-note level comparisons are
+exploratory, not a controlled experiment or calibrated loudness measurement.
+
+Run the focused alignment and measurement checks with:
+
+```bash
+python -m unittest test_compare_recordings -v
+```
+
+A notebook can later import `analyze_file` and `plot_comparisons` from
+`compare_recordings` for interactive exploration; importing either script does
+not load audio or open figures. Keep calculations in the script to avoid
+different notebooks silently using different analysis rules.
 
 ## Measurements and limitations
 
