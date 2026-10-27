@@ -1,6 +1,6 @@
 # Guitar ML — project handoff
 
-Last updated: 2026-10-25. Read this alongside README.md and the actual code.
+Last updated: 2026-10-27. Read this alongside README.md and the actual code.
 Verify the current files and Git status before making changes; this document is
 a checkpoint, not a substitute for inspecting the project.
 
@@ -11,9 +11,13 @@ engineering, signal processing, statistics, and eventually machine learning
 through personally recorded guitar audio. Understanding the work matters more
 than quickly producing a large application.
 
-Long-term interests include pitch, timing, bends, vibrato, slides, performance
-comparison, and possibly an LLM explanation layer. None of those are implemented.
-Do not jump into ML or deep learning yet.
+The user clarified the primary end goal on 2026-10-27: automatically transcribe
+guitar recordings into tablature, ultimately including faster picking, overlapping
+notes, and chords. Pitch, attack timing, and plausible string/fret assignments
+must guide the roadmap. Bends, vibrato, slides, performance comparison, and a
+possible explanation layer are secondary interests. None of these transcription
+capabilities are implemented. Preserve the tutoring pace; explain one small
+step before implementing it, and avoid prematurely adding models or architecture.
 
 ## How to collaborate
 
@@ -50,6 +54,70 @@ Do not jump into ML or deep learning yet.
 - `requirements.txt`: NumPy, SoundFile, Matplotlib (currently unpinned).
 - `.gitignore`: excludes `.venv/`, `__pycache__/`, `.DS_Store`, and `*.band/`.
 - `README.md`: current setup, behavior, and limitations.
+
+## Current direction — audio to tablature (2026-10-27)
+
+This section supersedes the earlier suggestions to keep tuning sustained-note
+end thresholds. The user explicitly asked whether that work is overengineering
+relative to automatic tabs for faster picking and chords. It is time to move on.
+The RMS lessons remain useful foundations, not the final transcription algorithm.
+
+- User's latest listening observation with headphones: low E take02 seems to
+  fade into background around 14 seconds. Earlier estimates were about 11 and
+  15 seconds; treat these as approximate subjective observations, not exact
+  endpoint labels. Measured RMS approaches pre-note background near 15 seconds.
+  RMS alone cannot establish how much remaining energy is guitar versus noise.
+- Do not keep adjusting thresholds to resolve a 14-versus-15-second endpoint.
+- A rule that waits for quiet between notes will miss new attacks during ringing.
+  The current 100 ms confirmation rule is only an isolated-note learning baseline,
+  not established as suitable for fast picking or polyphonic playing.
+- The first frequency-spectrum lesson is now implemented (see below). Review
+  the fundamental versus harmonics before adding fundamental estimation.
+- First transcription milestone: recover the ordered pitches and approximate
+  attack times of a short, known single-note phrase, then map them to tentative
+  string/fret positions under stated tuning and position constraints.
+- Same pitch can occur on multiple strings: pitch detection alone does not
+  uniquely identify the player's original fingering. Distinguish plausible tabs
+  from recovered actual string/fret assignments.
+- Faster passages and overlapping notes/chords require later onset and multipitch
+  work; multiple spectral peaks can also be harmonics of a single note. Compare
+  against known recorded phrases, and keep fresh takes for validation.
+- Later, consider evaluating an existing polyphonic transcription model as a
+  baseline (e.g. Spotify Basic Pitch produces note events/MIDI, not guitar tabs).
+  No model was installed, selected for production, or used on the recordings.
+
+## First frequency spectrum — 2026-10-27
+
+User authorized starting frequency detection and committing/pushing to GitHub.
+Added `02_understanding_frequency.ipynb` and matching `frequency_lesson.py`,
+using existing dependencies. Four visible code cells select low E take02's
+3.0–3.5 s interval (samples 132300:154350), plot its location, subtract its mean,
+apply a Hann window, compute NumPy rFFT magnitudes and frequency labels, then
+plot a spectrum. Sample rate is read from the file, not hardcoded. Selection is
+manual and editable, not a new silence assumption or automatic onset rule.
+
+22,050 samples at 44,100 Hz give a 0.5 s segment and 2 Hz FFT bin spacing;
+spacing is not a guarantee of pitch accuracy. Largest nonzero bin is 164 Hz
+for low E take02; the lower peak near 82 Hz and higher harmonics illustrate an
+octave-error risk. The same interval in low E take01 peaks at 82 Hz, A takes
+at 110 Hz, and C takes at 262 Hz. These are dominant bins, not automatically
+identified fundamentals or verified note labels. Filename labels do not enter
+the peak selection. The graph shows relative magnitudes and cannot compare
+recording volume. Full nonzero spectrum is searched; plot zoom is 0–1,000 Hz.
+
+Executed the four cells with the project interpreter and saved example outputs;
+validated notebook structure and visually inspected the spectrum. This was not
+a live Jupyter kernel test. Exercised the actual FFT cell with known 110 Hz tones
+plus DC and with a stronger 220 Hz harmonic, at both 44.1 and 48 kHz; expected
+dominant bins passed. Exact silence raises an explanatory error. Noise can still
+produce a largest peak: no note-presence detector is claimed. Seven existing
+comparison tests passed. Audio and batch detection code were not changed.
+
+Next teaching checkpoint: compare both E takes and explain why 164 Hz does not
+mean the second recording was an octave higher. Then add a small fundamental
+estimator (e.g. periodicity or harmonic spacing), checking several notes before
+moving to short melody frames. Avoid using a 0.5 s frame as a universal fast-note
+setting. No multipitch model, note-name mapping, or tablature generator added.
 
 ## Current comparison milestone — 2026-10-25
 
@@ -163,6 +231,47 @@ Next teaching checkpoint: user reads section 8 and explains why detection is
 confirmed after two windows but the candidate start is the first window boundary.
 Then evaluate the same rule on new takes with user-confirmed quiet regions.
 
+### Low E take02 transfer check — 2026-10-26
+
+The user requested the same rule on low E take02, expecting the note around
+2.5 seconds and definitely after 2 seconds. Section 8 now has a short input
+cell selecting `Low_E_note_dry_take02.wav` and candidate quiet region 0–1.5 s
+(samples 0:66150), before that expected attack. Variables in this section are
+now generic `test_*` names. Section 7's C-threshold/A-background check is preserved.
+The matching lesson script was updated. No batch detector changes.
+
+Settings stayed fixed: 50 ms windows, 10× median background RMS, two consecutive
+qualifying windows. The search still covers the whole file; the user's expected
+start was not used as a search constraint. Thirty quiet windows yielded median
+RMS 0.00016757 and threshold 0.00167566. First qualifying window boundary:
+sample 108045, 2.450 s; confirmation boundary: sample 112455, 2.550 s. Ratios
+in those two windows were about 51.00 and 68.86. Highest selected-quiet ratio
+was 2.70. The result is consistent with the user's rough expectation, but the
+window boundary is not an exact physical attack time. This previously viewed
+recording is a transfer check, not a wholly untouched validation example.
+
+Executed notebook code cells, saved new section 8 results/plot, verified the
+unchanged settings and earliest qualifying pair, and inspected the plot.
+Next: review these two windows with the user; then test a new recording under
+the same rule before choosing changes or adding note-end detection.
+
+### Low E take02 tail inspection — 2026-10-26
+
+The user thinks the note faded naturally (not confirmed). Numerically inspected
+50 ms windows around 15 seconds against the same 0–1.5 second background median
+(0.00016757). RMS is about 5.75× background at 14.00–14.05 s, 1.22× at
+14.90–14.95 s, and 1.02× at 15.00–15.05 s. From 15.05 to 15.60 s it remains
+approximately 0.96–0.99× background and contains nonzero recorded samples.
+Last nonzero sample is 688341 (15.608639 s); the following samples are exact
+zeros, through the file end at 16.343855 s. Do not count that digital-zero tail
+as evidence of physical note decay or treat it as the noise floor.
+
+This supports the user's rough ~15-second return-to-background observation,
+without verifying its physical cause or defining an exact endpoint. No new
+end detector or threshold has been implemented. Use this as a reviewed example
+when discussing a sustained return-to-background rule; avoid tuning the rule
+to hit exactly 15 seconds. The start threshold of 10× is unsuitable for the end.
+
 Learning feedback on 2026-10-25: the user finds the comparison script too much
 of a black box. Slow down, explain sample rate, indices, RMS windows, and every
 chosen constant before adding algorithmic complexity. The user specifically
@@ -266,7 +375,7 @@ window (indices 44100:46305) gave RMS approximately 0.39458260.
 Both plots use amplitude limits
 of -1 to 1, and the overview highlights the selected interval. Window dimensions
 and both figures were checked; the close-up was visually inspected.
-No FFT, pitch tracking, or ML is implemented. The batch comparison tests are
+At that earlier milestone no FFT, pitch tracking, or ML was implemented. The batch comparison tests are
 described above; these earlier single-file observations remain for reference.
 
 The script has run successfully. RMS was checked with an alternating
@@ -295,22 +404,20 @@ not committed test files.
 
 ## Git checkpoint and next steps
 
-The analysis milestone is committed locally as `b98e89a`, with message
-"Program to read wav file and preform amplitude analysis". It includes the code,
-README, requirements, example WAV, and ignore rules. Confirm push status rather
-than assuming it. This handoff was added after that milestone.
+Before this frequency milestone, local main and the cached origin/main both
+pointed to `f1bbb14` ("Add guitar recording comparison workflow"). All seven WAVs
+were already tracked. On 2026-10-27 the user authorized committing/pushing the
+existing quiet-lesson changes, updated project direction, and new frequency
+lesson. Review actual Git status/log for the resulting local commit.
 
-The close-up milestone is already committed as `87e96f4` ("added time window
-selection fro RMS and amplitude analysis"). The onset-aligned comparison code,
-tests, and documentation changes are not committed. The new WAV files are also
-untracked; review status/staging with the user before any commit. No push was done.
+Git fetch failed in the tool environment with `Could not resolve host: github.com`.
+Do not treat the cached origin/main as a freshly verified remote state or claim
+a successful push without confirming it. Normal push must be retried from a
+network-enabled terminal if this environment still cannot reach GitHub.
 
-Next learning step: walk through one recording and its sample/time conversion,
-then review quiet-region and start/end boundaries as described above. Do not add
-a more complex detector before explaining the measurement choices to the user.
-Continue collecting open D/G/B/high-E pairs under unchanged settings if desired.
-
-Later: repeat recordings under consistent conditions,
-zero-crossing rate, FFT, STFT/spectrogram, spectral centroid, then pitch tracking.
-Introduce modules and additional structure only when useful. For future ML,
-favor interpretable features and classical baselines before neural networks.
+Next learning step: see the current audio-to-tablature direction above. Review
+frequency, the fundamental, and harmonics using the new notebook.
+Pause sustained-note endpoint tuning. Then work toward pitches and attack times
+for a short known single-note phrase, followed by tentative tablature.
+Introduce additional features, modules, or models only when they serve that goal
+and after explaining their role to the user.

@@ -1,3 +1,4 @@
+
 # %% [markdown]
 # # What does “quiet” look like in one guitar recording?
 #
@@ -7,6 +8,7 @@
 #
 # ## 1. Load the recording
 # The file supplies its sample rate. At 44,100 Hz, each channel has 44,100 amplitude measurements per second. We use the left channel consistently.
+
 # %%
 from pathlib import Path
 import numpy as np
@@ -28,6 +30,7 @@ print("Duration:", round(len(signal) / sample_rate, 3), "seconds")
 # %% [markdown]
 # ## 2. Look before deciding
 # The waveform shows individual signed amplitudes. Locate the quiet lead-in and the strong attack. A flat-looking line at this scale can still contain background noise.
+
 # %%
 fig, ax = plt.subplots(figsize=(10, 3))
 ax.plot(time_seconds, signal, linewidth=0.5)
@@ -42,6 +45,7 @@ plt.show()
 # For **this take**, 0.20–1.00 seconds is before the visible attack. These are editable selections, not a universal silence duration. Only use a region where you were not playing; an image alone cannot prove it contains no faint note.
 #
 # Seconds × sample rate gives a sample index. Python's slice includes the start and excludes the stop. At 44,100 Hz, this selection is `signal[8820:44100]`.
+
 # %%
 quiet_start_seconds = 0.20
 quiet_end_seconds = 1.00
@@ -66,6 +70,7 @@ plt.show()
 # A 50 ms window contains 2,205 samples at 44,100 Hz. It is a useful starting resolution, not a law: shorter windows show faster changes; longer windows smooth them.
 #
 # RMS = square root of the mean of the squared amplitudes. Squaring prevents positive and negative values from cancelling. Here are those operations separately.
+
 # %%
 window_seconds = 0.05
 window_samples = round(window_seconds * sample_rate)
@@ -86,6 +91,7 @@ print("RMS:", one_window_rms)
 # The loop advances by `window_samples` each time. Each plotted time is the window's midpoint in the original file. A partial final window is dropped, not filled with zeros.
 #
 # For the background estimate we retain only windows **fully inside** your selected quiet interval. A window crossing its boundary is excluded.
+
 # %%
 window_starts = np.arange(0, len(signal) - window_samples + 1, window_samples)
 window_stops = window_starts + window_samples
@@ -113,6 +119,7 @@ print("Highest observed quiet-window RMS:", np.max(quiet_rms))
 # It sits above the selected background by construction. That alone does **not** validate it: it might still react to noise elsewhere or miss a soft attack. A candidate region containing a click may make this threshold too high.
 #
 # The top plot shows the whole recording; the bottom magnifies only the selected background windows. Their vertical scales differ intentionally. Original amplitudes are unchanged.
+
 # %%
 threshold_multiplier = 1.5
 candidate_threshold = threshold_multiplier * np.max(quiet_rms)
@@ -201,39 +208,69 @@ fig.tight_layout()
 plt.show()
 
 # %% [markdown]
-# ### What this check can tell us
-# If all 24 points are below the line, there were no false alarms **in this selected quiet interval**. That is evidence the threshold works on this additional region; it does not prove it will reject all future noise or detect a very soft note.
+# ### Result for these recordings
+# **1 of 24 known-quiet windows exceeded the unchanged C-based threshold.** It covers 1.05–1.10 seconds, original samples `46305:48510`, with RMS about 0.00026708 versus the threshold of 0.00024301.
 #
-# These adjacent windows come from one recording and are not 24 independent recording sessions. Recording/export gain differences also affect transfer of an absolute threshold.
+# The other 23 windows stayed below the line. This isolated excursion is a false alarm for a rule that labels every above-threshold window as a note. Its physical cause has not been identified; we cannot call it a click or guitar note from RMS alone.
 #
-# Next question to review together: what happens when the note's decay approaches this line? Do not change the threshold just to force the plot to look right.
+# These adjacent windows come from one recording, not 24 independent sessions. This result does not estimate a general false-alarm rate or prove that the rule will detect quiet notes.
+#
+# Next, inspect the flagged waveform interval. Then consider whether requiring a rise to persist across multiple windows would reject this excursion while still detecting the note's attack. That duration rule has not been added here. Keep the threshold fixed while studying this example rather than adjusting it to force a pass.
 
 # %% [markdown]
 # ## 8. A strong rise that lasts: one start-detection experiment
 # The previous section tested a C-derived absolute threshold on A's background. Leave that result intact. Here we try a **separate, explicitly provisional rule** for isolated picked notes:
 #
-# 1. Estimate this recording's typical background using the median of its user-confirmed quiet windows (A, 0–1.2 seconds).
+# 1. Estimate the selected recording's typical background using the median of its reviewed quiet windows.
 # 2. Divide each window's RMS by that background level. A ratio of 1 means typical background; 10 means ten times its RMS amplitude, not ten times perceived loudness.
 # 3. Require a ratio above **10 for two consecutive 50 ms windows**.
 #
 # Ten times background is an intentionally conservative trial for clearly picked notes; 100 ms is short compared with our sustained notes but longer than one isolated window. Neither setting is established as optimal. Keep these settings fixed when testing new D/G takes; report errors before changing them. Quiet-region selection remains manual, not a fixed lead-in assumption.
 #
 # The median is the middle value after sorting; it is less affected by the one high background window than the maximum. This is not a formal signal-to-noise-ratio calculation: the measured windows contain signal plus noise.
+#
+# **Current transfer check:** low E take02, with candidate quiet interval 0–1.5 seconds. You expect the attack around 2.5 seconds and after 2 seconds. That expectation is for reviewing the result; the detector still searches the entire recording, with no forced minimum start time. The rule remains 10× background for two 50 ms windows.
+#
+# The small input cell below makes the file and quiet selection explicit. The earlier C/A threshold check in section 7 remains unchanged.
 
 # %%
-background_rms = np.median(a_quiet_rms)
-if background_rms <= 0:
-    raise ValueError("The selected background is zero; choose a genuine noise-only interval.")
+# Change only this file and its reviewed quiet interval for a new recording.
+test_path = Path("data/raw/Low_E_note_dry_take02.wav")
+test_quiet_start_seconds = 0.0
+test_quiet_end_seconds = 1.5
 
+# Keep the measurement window and decision rule fixed for this transfer check.
+window_seconds = 0.05
+test_samples, test_sample_rate = sf.read(test_path)
+test_signal = test_samples[:, 0] if test_samples.ndim == 2 else test_samples
+test_window_size = round(window_seconds * test_sample_rate)
+test_quiet_start = round(test_quiet_start_seconds * test_sample_rate)
+test_quiet_stop = round(test_quiet_end_seconds * test_sample_rate)
+if not 0 <= test_quiet_start < test_quiet_stop <= len(test_signal):
+    raise ValueError("Choose a nonempty quiet interval inside the test recording.")
+print("Testing:", test_path.name)
+print(f"Candidate quiet interval: samples {test_quiet_start}:{test_quiet_stop}")
+
+# %%
 strength_ratio = 10.0
 required_windows = 2
-all_a_starts = np.arange(0, len(a_signal) - a_window_size + 1, a_window_size)
-all_a_rms = []
-for start in all_a_starts:
-    window = a_signal[start:start + a_window_size]
-    all_a_rms.append(np.sqrt(np.mean(window ** 2)))
-all_a_rms = np.array(all_a_rms)
-relative_rms = all_a_rms / background_rms
+all_test_starts = np.arange(0, len(test_signal) - test_window_size + 1, test_window_size)
+all_test_rms = []
+for start in all_test_starts:
+    window = test_signal[start:start + test_window_size]
+    all_test_rms.append(np.sqrt(np.mean(window ** 2)))
+all_test_rms = np.array(all_test_rms)
+
+# Use complete windows in this file's selected quiet region for its background.
+in_test_quiet = ((all_test_starts >= test_quiet_start) &
+                 (all_test_starts + test_window_size <= test_quiet_stop))
+test_quiet_rms = all_test_rms[in_test_quiet]
+if len(test_quiet_rms) < 3:
+    raise ValueError("Select a quiet interval containing at least three complete windows.")
+background_rms = np.median(test_quiet_rms)
+if background_rms <= 0:
+    raise ValueError("The selected background is zero; choose a genuine noise-only interval.")
+relative_rms = all_test_rms / background_rms
 strong = relative_rms > strength_ratio
 
 first_run = None
@@ -244,18 +281,18 @@ for index in range(len(strong) - required_windows + 1):
 
 print(f"Median background RMS: {background_rms:.8f}")
 print(f"Trial RMS threshold: {strength_ratio * background_rms:.8f}")
-print("Required duration:", required_windows * a_window_size / a_sample_rate, "seconds")
+print("Required duration:", required_windows * test_window_size / test_sample_rate, "seconds")
 if first_run is None:
     print("No sustained start found under this trial rule.")
 else:
-    start_sample = int(all_a_starts[first_run])
-    confirmation_sample = start_sample + required_windows * a_window_size
+    start_sample = int(all_test_starts[first_run])
+    confirmation_sample = start_sample + required_windows * test_window_size
     print(f"Candidate start-window boundary: sample {start_sample}, "
-          f"{start_sample / a_sample_rate:.3f} seconds")
+          f"{start_sample / test_sample_rate:.3f} seconds")
     print(f"Enough evidence available at sample {confirmation_sample}, "
-          f"{confirmation_sample / a_sample_rate:.3f} seconds")
+          f"{confirmation_sample / test_sample_rate:.3f} seconds")
     print("Ratios in the confirming windows:", relative_rms[first_run:first_run + required_windows])
-print("Highest ratio in the known quiet interval:", np.max(a_quiet_rms / background_rms))
+print("Highest ratio in the selected quiet interval:", np.max(test_quiet_rms / background_rms))
 
 # %% [markdown]
 # ### Start estimate versus confirmation time
@@ -264,18 +301,18 @@ print("Highest ratio in the known quiet interval:", np.max(a_quiet_rms / backgro
 # That is a window boundary expressed as an original-file sample index, **not a sample-accurate attack measurement**. The attack can occur partway through a window, and a soft beginning may be missed. Smaller windows or later sample-level refinement could improve timing, but first understand this simple rule.
 
 # %%
-all_a_times = (all_a_starts + a_window_size / 2) / a_sample_rate
+all_test_times = (all_test_starts + test_window_size / 2) / test_sample_rate
 fig, ax = plt.subplots(figsize=(10, 4))
-ax.plot(all_a_times, relative_rms, label="Window RMS / median background RMS")
+ax.plot(all_test_times, relative_rms, label="Window RMS / median background RMS")
 ax.axhline(strength_ratio, color="red", linestyle="--", label="Trial strength threshold: 10×")
-ax.axvspan(a_start / a_sample_rate, a_stop / a_sample_rate,
-           color="orange", alpha=0.2, label="User-confirmed quiet interval")
+ax.axvspan(test_quiet_start / test_sample_rate, test_quiet_stop / test_sample_rate,
+           color="orange", alpha=0.2, label="Selected quiet interval")
 if first_run is not None:
-    ax.axvline(start_sample / a_sample_rate, color="green", label="Candidate start-window boundary")
-    ax.axvspan(start_sample / a_sample_rate, confirmation_sample / a_sample_rate,
+    ax.axvline(start_sample / test_sample_rate, color="green", label="Candidate start-window boundary")
+    ax.axvspan(start_sample / test_sample_rate, confirmation_sample / test_sample_rate,
                color="green", alpha=0.2, label="Two windows used for confirmation")
-ax.set(xlabel="Seconds in original A take01", ylabel="RMS relative to background",
-       title="Strong AND sustained activity — trial rule", xlim=(0, len(a_signal) / a_sample_rate))
+ax.set(xlabel="Seconds in original file", ylabel="RMS relative to background",
+       title=f"{test_path.name} — unchanged strong-and-sustained rule", xlim=(0, len(test_signal) / test_sample_rate))
 ax.set_ylim(bottom=0)
 ax.legend()
 ax.grid(alpha=0.25)
@@ -286,6 +323,6 @@ plt.show()
 # ### Pause and explain the loop
 # Why do we mark the start of the first strong window rather than the end of the second?
 #
-# This is a development example on a recording we have already inspected, not a held-out validation. The quiet excursion is below the new strength threshold, so rejecting it does not by itself demonstrate the value of persistence. Sustained handling noise could still pass both conditions, and quiet or short real notes could fail.
+# This is a transfer check with unchanged settings. We have previously inspected this recording's waveform, so it is not an untouched validation recording. The earlier A quiet excursion was rejected by the strength condition alone; it did not establish the value of persistence. Sustained handling noise could still pass both conditions, and quiet or short real notes could fail.
 #
 # **This is a start rule only.** Do not use the 10× line to declare the end of a fading note: it would discard quieter ringing that is still above background. End detection needs a separately explained rule. The batch comparison script remains unchanged.
