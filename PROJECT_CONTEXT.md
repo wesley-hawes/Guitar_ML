@@ -71,8 +71,8 @@ The RMS lessons remain useful foundations, not the final transcription algorithm
 - A rule that waits for quiet between notes will miss new attacks during ringing.
   The current 100 ms confirmation rule is only an isolated-note learning baseline,
   not established as suitable for fast picking or polyphonic playing.
-- The first frequency-spectrum lesson is now implemented (see below). Review
-  the fundamental versus harmonics before adding fundamental estimation.
+- The spectrum and first autocorrelation candidate-fundamental lesson are now
+  implemented (see below). Review the similarity loop and peaks before advancing.
 - First transcription milestone: recover the ordered pitches and approximate
   attack times of a short, known single-note phrase, then map them to tentative
   string/fret positions under stated tuning and position constraints.
@@ -113,11 +113,52 @@ dominant bins passed. Exact silence raises an explanatory error. Noise can still
 produce a largest peak: no note-presence detector is claimed. Seven existing
 comparison tests passed. Audio and batch detection code were not changed.
 
-Next teaching checkpoint: compare both E takes and explain why 164 Hz does not
-mean the second recording was an octave higher. Then add a small fundamental
-estimator (e.g. periodicity or harmonic spacing), checking several notes before
-moving to short melody frames. Avoid using a 0.5 s frame as a universal fast-note
-setting. No multipitch model, note-name mapping, or tablature generator added.
+The user subsequently understood the difference between frequency positions and
+harmonic strengths, and the shifted-waveform explanation of autocorrelation.
+They explicitly requested coding it; the following milestone advances this lesson.
+Avoid using a 0.5 s frame as a universal fast-note setting. No multipitch model,
+note-name mapping, or tablature generator added.
+
+### Autocorrelation addition — 2026-10-27
+
+Added sections 5–6 (two code cells) to the same notebook and matching script.
+Use the same mean-centered 3.0–3.5 s segment, without the FFT Hann taper. An
+explicit loop multiplies overlapping sample pairs at each lag and sums them,
+dividing by the zero-lag squared sum. No FFT shortcut or new dependencies.
+Longer shifts contain fewer pairs, causing a mild shorter-lag preference;
+this is documented, not presented as overlap-corrected correlation or confidence.
+
+Search range is fixed at 60–1,000 Hz, converted with ceil(sr / max_frequency)
+and floor(sr / min_frequency), i.e. 45–735 samples at 44.1 kHz. Zero lag is not
+a candidate. Choose the highest positive local maximum within the bounds;
+compute one extra lag to check the upper boundary's neighbor. Report competing
+peaks, best lag, period, candidate frequency, score, and prior FFT strongest bin.
+Plot similarity versus lag plus an amplitude-preserving overlay of three periods.
+No filename-based expected pitch, per-take parameter tuning, interpolation,
+note-presence threshold, multiple-note tracking, or chord decoder is used.
+
+Unchanged-settings development results on all six current takes:
+- Low E take01 and take02: lag 538, 81.97 Hz (scores 0.975 / 0.979).
+- A take01: lag 399, 110.53 Hz; A take02: lag 400, 110.25 Hz (scores ~0.981).
+- C take01 and take02: lag 168, 262.50 Hz (scores 0.992 / 0.989).
+For E take02 the competing lag 270 (163.33 Hz) scores only 0.114, illustrating
+why its stronger second harmonic does not imply a fundamental of 164 Hz.
+The scores are similarity measures, not accuracy probabilities. Integer-lag
+rounding affects pitch precision; multiple-period/harmonic peaks remain a risk.
+
+Executed all six notebook code cells and saved outputs, validated notebook
+structure, and visually inspected the new plots. Not a live Jupyter kernel test.
+Exercised the actual autocorrelation cell on 12 synthetic cases: 82.41, 110,
+261.63 Hz at 44.1/48 kHz, with and without a second harmonic twice the fundamental
+amplitude. All estimates were within 0.5% of the known frequency. Gain scaling
+plus a DC offset preserved each chosen lag. Silence, constant, and too-short
+inputs raised errors. Previous FFT synthetic checks also passed. These checks
+do not establish real-world performance, especially for noise, chords, or attacks.
+
+Next tutoring checkpoint: user reads section 5's slice/product loop and section
+6's plots, understands score normalization and candidate selection. Then examine
+stability across ringing intervals and move toward a known melody with shorter
+sliding windows. Keep new takes for evaluation instead of tuning to these six.
 
 ## Current comparison milestone — 2026-10-25
 
