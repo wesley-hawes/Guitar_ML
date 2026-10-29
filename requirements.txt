@@ -1,3 +1,4 @@
 numpy
 soundfile
 matplotlib
+mido>=1.3,<2

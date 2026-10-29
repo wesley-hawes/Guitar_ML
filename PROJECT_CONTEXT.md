@@ -1,8 +1,43 @@
 # Guitar ML — project handoff
 
-Last updated: 2026-10-27. Read this alongside README.md and the actual code.
+Last updated: 2026-10-28. Read this alongside README.md and the actual code.
 Verify the current files and Git status before making changes; this document is
 a checkpoint, not a substitute for inspecting the project.
+
+## Resume here — end-of-session handoff (2026-10-28)
+
+User explicitly asked to stop development here, remember the findings/learning,
+and commit/push the current work. No acceptance/rejection rule was implemented.
+Do not start further analysis until the user resumes it.
+
+Current verdict: lesson 04's 100 ms / 20 ms sliding baseline follows the three
+ringing pitches consistently. Median estimates over 0.5–3.5, 4.5–7.5, and
+8.5–11.5 seconds are ~82.76, 87.91, 93.02 Hz versus nominal MIDI references
+82.41, 87.31, 92.50 Hz. Low-level gaps/tails can still yield spurious pitches;
+the final frame is ~888.89 Hz. This is a promising baseline, not a validated
+accuracy claim. Actual tuning and estimator error have not been separated.
+
+Learning checkpoint: user understands harmonics and that similarity is
+autocorrelation, not label accuracy. Clarify again if needed: autocorrelation
+compares samples WITHIN ONE analysis window against time-shifted copies of that
+same window. It does not compare a window against the previous sliding window
+or against MIDI. A lower score means weaker repeating-pattern agreement under
+this calculation; gain reduction alone does not necessarily reduce normalized
+similarity. Noise, changing vibration, and the shorter-window overlap penalty
+can affect it. The 100 ms scores cannot directly inherit half-second thresholds.
+
+Agreed next step on resumption:
+1. Add a small, explicit trial acceptance/rejection rule using level and
+   autocorrelation evidence, retaining raw candidates and showing rejected ones.
+2. Test unchanged settings on P2 single notes to check transfer before tuning.
+3. Later group accepted pitch windows into note events; repeated same-pitch
+   picking will need attack detection. No extended MIDI alignment project first.
+
+Keep explanations focused on key math, code, architecture, and concrete concerns.
+Preserve the user's preference against overengineering and black-box additions.
+All 15 tests passed at wrap-up. Lesson 02 now contains the user's saved 5–5.5 s
+experiment; preserve that edit (the older script still defaults to 3–3.5 s).
+Read the Git checkpoint below before assuming changes reached GitHub.
 
 ## Purpose
 
@@ -15,8 +50,8 @@ The user clarified the primary end goal on 2026-10-27: automatically transcribe
 guitar recordings into tablature, ultimately including faster picking, overlapping
 notes, and chords. Pitch, attack timing, and plausible string/fret assignments
 must guide the roadmap. Bends, vibrato, slides, performance comparison, and a
-possible explanation layer are secondary interests. None of these transcription
-capabilities are implemented. Preserve the tutoring pace; explain one small
+possible explanation layer are secondary interests. Full note-event transcription,
+multi-pitch detection, and tab generation are not implemented. Preserve the tutoring pace; explain one small
 step before implementing it, and avoid prematurely adding models or architecture.
 
 ## How to collaborate
@@ -35,6 +70,12 @@ step before implementing it, and avoid prematurely adding models or architecture
 - Call out statistical concerns when they arise, such as inconsistent measurement
   windows, recording gain, repeated takes, and later data leakage.
 - Keep this handoff updated at meaningful milestones, including unresolved issues.
+- User reiterated on 2026-10-28: avoid overengineering. Prioritize understanding
+  the data and building a useful note-analysis program. Do not turn the small
+  MIDI timing mismatch into a prolonged alignment project before progressing.
+- With each change, explain the key math/code and system architecture: inputs,
+  outputs, module responsibilities, and why the change is useful. Raise concrete
+  concerns revealed by the data or design; keep the next learning step small.
 
 ## Environment and files
 
@@ -51,11 +92,160 @@ step before implementing it, and avoid prematurely adding models or architecture
   now guarded by `if __name__ == "__main__"` so imports have no plotting side effects.
 - `compare_recordings.py`: onset-aligned batch amplitude comparisons.
 - `test_compare_recordings.py`: seven focused unittest checks.
-- `requirements.txt`: NumPy, SoundFile, Matplotlib (currently unpinned).
+- `requirements.txt`: NumPy, SoundFile, Matplotlib (currently unpinned), Mido >=1.3,<2.
 - `.gitignore`: excludes `.venv/`, `__pycache__/`, `.DS_Store`, and `*.band/`.
 - `README.md`: current setup, behavior, and limitations.
 
+## Latest working checkpoint — sliding-window analysis (2026-10-28)
+
+This checkpoint supersedes earlier suggestions to focus next on MIDI timing
+correction. User wants practical data understanding and a continuous analysis
+prototype, with learning explanations and concrete concerns at each change.
+
+Implemented `04_tracking_pitch.ipynb` and matching `pitch_tracking_lesson.py`:
+1. Load P1 direct-input audio at 0–11.9 s (48 kHz mono), original samples 0:571200.
+2. Define 100 ms windows (4,800 samples), 20 ms hops (960 samples), 60–1,000 Hz bounds.
+3. Explicitly loop over all 591 complete windows, computing candidate pitch,
+   original-window RMS, lag, and similarity. First midpoint 0.05 s, last 11.85 s.
+4. Load MIDI labels ONLY AFTER all audio measurements; use as unchanged plot overlay.
+5. Plot all candidates, RMS in dBFS, and similarity on a common time axis.
+6. Save CSV/PNG in ignored `outputs/pitch_tracking/`, prefixed by dataset folder name.
+
+Architecture: `pitch_analysis.py` is the shared single-window calculation with
+no MIDI/files/plots. Input is one-dimensional samples, rate, and frequency bounds;
+output is candidate Hz, lag in samples, and normalized similarity. Notebook/script
+owns loading, sample-index window traversal, diagnostics, plotting, and saving.
+`guitartechs_midi.py` is the separate annotation reader, used only for comparison.
+Lesson 03 now imports this same pitch function rather than duplicating it; its
+three default results are unchanged. Lesson 02 retains its explicit teaching
+calculation and the user's edits; it was not overwritten.
+
+The estimator returns NaN for a constant window or no positive local peak;
+invalid/too-short input raises ValueError. No RMS/similarity filtering, smoothing,
+MIDI-based selection/correction, label time shifts, pitch-name assignment,
+note grouping, onset detector, chord decoder, training, or tabs were added.
+
+Observed results: 590 of 591 windows have mathematical candidates (not 590
+reliable notes). Candidate pitch follows E2/F2/F#2 in ringing portions. Medians
+at 0.5–1.0, 4.5–5.0, 8.5–9.0 s are ~82.62/87.91/93.02 Hz. Low-level gaps/tails
+produce large excursions: overall finite range 60–888.89 Hz; final frame is
+888.89 Hz at RMS ~0.000115 and similarity ~0.308. All excursions stay visible.
+
+Learning points / concerns:
+- Overlapping windows are observations, not separate note events or independent
+  test examples. A 20 ms hop does not imply 20 ms onset accuracy; timestamps are
+  midpoints of 100 ms spans. Original start/exclusive-stop samples are in the CSV.
+- Similarity falls from ~0.97 in half-second windows to ~0.88 in 100 ms ringing
+  windows partly because the score sums N-k overlapping pairs but divides by
+  zero-lag energy over N samples. Do not reuse thresholds across window sizes.
+- RMS plot uses 20*log10(RMS), flooring only the display at 1e-12 (-240 dBFS).
+  Original RMS is preserved in CSV; no audio normalization or noise gate is applied.
+- Label gaps can contain ringing; the MIDI is neither perfectly timed nor perfect
+  ground truth. Keep the mismatch visible rather than tuning to exact timestamps.
+- 60–1,000 Hz does not cover all high notes in the full dataset. This is a
+  single-note development example, not evaluated chord/full-dataset performance.
+
+Validation: known tones with stronger second harmonics at 44.1/48 kHz passed
+within 1% using 100 ms windows; gain/DC invariance, constant-input NaNs, and
+invalid input checks passed (`test_pitch_analysis.py`, four test methods).
+Executed all six lesson cells, validated notebook structure, inspected the plot,
+and verified 591 windows, 4,800-sample widths, 960-sample hops, midpoints, and RMS.
+Re-executed lesson 03 to verify unchanged results after sharing the estimator.
+Saved outputs were generated by executing cells with project Python, not via a
+live Jupyter kernel. No packages added in this step; Mido was already installed.
+
+Next learning step: user reads lesson 04's explicit sliding loop and three-panel
+plot. Discuss the failure regions, then try a small explainable no-reliable-pitch
+rule and check another excerpt/performer before tuning. Keep progress aimed at
+note events and tabs; do not start an extended timing audit or large ML system.
+
 ## Current direction — audio to tablature (2026-10-27)
+
+### Guitar-TECHS downloads inspected — 2026-10-28
+
+User downloaded P1/P2 chords, scales, singlenotes, techniques and P3_music into
+`/Users/wesley/Downloads`. All nine distinct ZIPs match the official Zenodo MD5
+checksums: https://zenodo.org/records/14963133. `P3_music (1).zip` is an identical
+duplicate; nothing was deleted, moved, or extracted during inspection.
+P1_singlenotes and P2_singlenotes were already extracted in Downloads.
+
+Labels ARE present under each archive's `midi/` directory as `.mid` files.
+Each has corresponding `audio/directinput/directinput_<name>.wav` and
+`audio/micamp/micamp_<name>.wav`; ego/exo audio is MP3 under `video/`.
+Excluding macOS metadata, each P1/P2 group contains 28 chord MIDI files,
+12 scales, 1 single-note sequence, and 5 techniques. P3 has 12 music MIDI files:
+104 label files total, each paired with both WAV capture types. Ignore __MACOSX
+and ._ resource-fork entries when constructing manifests.
+
+Single-note example pair:
+`/Users/wesley/Downloads/P1_singlenotes/audio/directinput/directinput_allsinglenotes.wav`
+and `/Users/wesley/Downloads/P1_singlenotes/midi/midi_allsinglenotes.mid`.
+Both players' WAVs are 552 seconds at 48 kHz: long note sequences, not isolated
+WAVs per note. P1 is mono, P2 stereo; DI is PCM24 and amp-mic PCM16.
+Both MIDIs are format 1, 960 ticks/quarter, with tempo 1,000,000 microseconds per
+quarter (60 BPM), a metadata track and six tracks named e/B/G/D/A/E.
+Note-on/off events and string-track identities were inspected directly; no MIDI
+package installed. P1 uses channel 0 across all string tracks, so channel alone
+must not be used as a string label. P2 uses separate channels as well as tracks.
+P1 contains 142 positive-velocity note-ons; P2 contains 137. Some P1 low-velocity
+events occur outside the expected ascending string sequence, and P2 D has 22
+events. These deserve review, not automatic deletion or assumptions of perfect
+ground truth. Pitch range includes MIDI 86 (~1175 Hz), exceeding the lesson's
+current 1,000 Hz upper bound.
+
+Official dataset notes warn of up to 100 ms signal misalignment. Verify audio
+and MIDI timing on a short excerpt before scoring attacks or training. The
+official site https://guitar-techs.github.io/ states CC BY 4.0 and requests citation.
+Next small step: read a short P1 direct-input/MIDI pair, display note labels as
+a table and overlay timings on audio before building a training dataset. Keep
+all captures of one performance together in future train/validation/test splits.
+No full training, automated note-label alignment, or audio quality audit performed.
+
+### First Guitar-TECHS label overlay — 2026-10-28
+
+User authorized taking a short single-note excerpt and comparing labels against
+waveform plots. Added `03_guitartechs_labels.ipynb` and its matching
+`guitartechs_labels_lesson.py`. Five code cells read P1 direct input 0–11.9 s
+(48 kHz mono, samples 0:571200), load MIDI labels, plot unchanged label spans
+and a zoom around F2's start, estimate pitch in one half-second segment per label,
+and plot nominal label frequencies separately from predicted frequencies.
+
+User installed Mido successfully in `.venv` after tool-environment installation
+failed. Added `mido>=1.3,<2` to requirements. `guitartechs_midi.py` uses Mido to
+preserve track identity, order events, convert ticks with the tempo map, and
+pair note-on/off messages (including velocity-zero note-ons). It reports invalid
+pairings instead of silently dropping them. No custom binary MIDI decoder remains.
+
+First supplied labels (all low-E string, standard-tuning frets 0/1/2):
+- E2 (MIDI 40): 0–3.7354167 s; target 82.4069 Hz.
+- F2 (MIDI 41): 4.0208333–7.8 s; target 87.3071 Hz.
+- F#2 (MIDI 42): 8.0260417–11.790625 s; target 92.4986 Hz.
+Sampling starts 0.5 s after each supplied onset, for 0.5 s. Original sample
+windows: [24000:48000], [217000:241000], [409250:433250]. Same 60–1,000 Hz
+autocorrelation rule returns lags 581/547/516, frequencies 82.6162/87.7514/93.0233
+Hz, similarities ~0.971/0.970/0.974. Expected label pitch does not enter estimator.
+These nominal-versus-measured differences are not established tuning errors;
+integer lag, actual tuning, and changing pitch can contribute. No threshold tuned.
+
+The F2 waveform attack visibly precedes the MIDI marker by a few tens of ms.
+No automatic alignment correction was made. MIDI note-off is not guaranteed to
+mark the final audible decay. First note has no preceding context (start at zero).
+This is label-guided window selection, not automatic event detection, a
+sliding-window implementation, independent validation, or model training.
+
+All five notebook cells executed with the project interpreter; outputs saved,
+notebook schema validated, both plots visually inspected (not a live kernel test).
+Four MIDI tests in `test_guitartechs_midi.py` pass: tempo changes/zero-velocity note-offs,
+same channel/pitch on different tracks, invalid pairing errors, and asynchronous
+file rejection. Six known-tone/stronger-harmonic pitch checks at 44.1/48 kHz pass;
+excerpt labels and original sample bounds also verified. Original WAV/MIDI and
+the user's modified frequency notebook were left untouched.
+
+Next teaching checkpoint: read notebook 03's first three cells and inspect
+what the shaded labels mean; then review the prediction table/plot in cells 4–5.
+Keep timing mismatch visible before proposing any alignment rule or training.
+
+### Transcription roadmap
 
 This section supersedes the earlier suggestions to keep tuning sustained-note
 end thresholds. The user explicitly asked whether that work is overengineering
@@ -445,20 +635,18 @@ not committed test files.
 
 ## Git checkpoint and next steps
 
-Before this frequency milestone, local main and the cached origin/main both
-pointed to `f1bbb14` ("Add guitar recording comparison workflow"). All seven WAVs
-were already tracked. On 2026-10-27 the user authorized committing/pushing the
-existing quiet-lesson changes, updated project direction, and new frequency
-lesson. Review actual Git status/log for the resulting local commit.
+At the 2026-10-28 wrap-up, main and cached origin/main started at `199664a`
+("Autocorrelation notebook for naalyzing pitch frequency across notes"). The user
+authorized committing and pushing all current project changes, including their
+saved lesson 02 experiment, lessons 03/04, shared modules, tests, and handoff.
+Look for the commit "Add Guitar-TECHS labels and sliding-window pitch analysis"
+in the actual log; do not rely on a self-referential hash in this document.
 
-Git fetch failed in the tool environment with `Could not resolve host: github.com`.
-Do not treat the cached origin/main as a freshly verified remote state or claim
-a successful push without confirming it. Normal push must be retried from a
-network-enabled terminal if this environment still cannot reach GitHub.
+The wrap-up fetch again failed with `Could not resolve host: github.com`.
+The tool environment cannot currently reach GitHub. A local commit does not
+establish upload success; check the push result and fresh remote state. If needed,
+the user can run `git push origin main` from their network-enabled terminal.
+Dataset ZIPs/audio stay in Downloads and generated tracking outputs are ignored.
 
-Next learning step: see the current audio-to-tablature direction above. Review
-frequency, the fundamental, and harmonics using the new notebook.
-Pause sustained-note endpoint tuning. Then work toward pitches and attack times
-for a short known single-note phrase, followed by tentative tablature.
-Introduce additional features, modules, or models only when they serve that goal
-and after explaining their role to the user.
+Resume with the small rejection-rule/P2 transfer experiment described at the top,
+only when the user returns. Do not proceed with that work during this wrap-up.

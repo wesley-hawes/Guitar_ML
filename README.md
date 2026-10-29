@@ -8,7 +8,53 @@ pitch transcription and string/fret assignment are not implemented yet.
 
 ## Current milestone
 
-Open `02_understanding_frequency.ipynb` for the newest step. The first four code cells
+Start `04_tracking_pitch.ipynb` for the latest step (or run
+`python pitch_tracking_lesson.py`). It analyzes the same 11.9-second P1 excerpt
+in 100 ms windows with 20 ms hops: 591 complete windows. The visible loop uses
+audio only, measures pitch candidates/RMS/similarity, then adds MIDI references
+for the plot. Every finite candidate remains visible; there is no smoothing,
+alignment correction, or noise rejection threshold. Constant/no-positive-peak
+windows return NaN rather than a made-up pitch.
+
+`pitch_analysis.py` now holds the single-window autocorrelation function shared
+by lessons 03 and 04. It takes samples, sample rate, and frequency bounds, and
+returns candidate Hz, lag, and similarity; it has no file, plotting, or MIDI
+dependencies. The notebook/script controls window selection and output.
+Run its checks with `python -m unittest test_pitch_analysis -v`.
+
+The plot and CSV are regenerated under `outputs/pitch_tracking/` (ignored by Git).
+The CSV retains original sample bounds and window midpoints. Midpoints do not
+establish note attack times. This example follows the three ringing pitches but
+produces large pitch jumps during low-level gaps/tails. Similarity depends on
+window duration and is not a confidence probability. Inspect the failure regions
+before adding a simple no-reliable-pitch rule; full event detection, ML, and tabs
+are later steps. Saved notebook outputs were executed with project Python and
+validated, not run through a live Jupyter kernel.
+
+The preceding dataset lesson is `03_guitartechs_labels.ipynb`, with matching
+`guitartechs_labels_lesson.py`. It reads the first 11.9 seconds of P1's Guitar-TECHS
+direct-input single-note sequence from `~/Downloads/P1_singlenotes`, displays its
+MIDI labels (E2/F2/F#2), overlays their unchanged timing on the waveform, and
+compares one half-second ringing window per label with autocorrelation estimates.
+This is label-guided inspection, not sliding-window transcription or training.
+Keep the extracted dataset in Downloads or edit `dataset_folder` in cell 1.
+No third-party audio is copied into the repository.
+
+MIDI parsing requires `mido` (now in `requirements.txt`):
+`python -m pip install mido`. The helper `guitartechs_midi.py` converts ticks to
+seconds using tempo events and preserves string-track identity when channels
+are shared. Focused checks run with `python -m unittest test_guitartechs_midi -v`.
+The user installed Mido in the project environment. All five lesson cells were
+executed there, example outputs saved, and notebook structure/plots checked;
+this was not execution through a live Jupyter kernel.
+
+Data: Pedroza et al., *Guitar-TECHS*, ICASSP 2025,
+[official release](https://zenodo.org/records/14963133),
+[project and CC BY 4.0 license](https://guitar-techs.github.io/).
+The publisher reports possible timing misalignment up to 100 ms. The lesson
+shows a small label-versus-attack discrepancy without applying a correction.
+
+Open `02_understanding_frequency.ipynb` for the preceding step. The first four code cells
 select an editable 3.0–3.5 second segment of low E take02, show its original
 sample indices, apply a Hann window, and plot its FFT magnitude spectrum.
 The strongest bin is 164 Hz; a lower peak near 82 Hz illustrates why a dominant
