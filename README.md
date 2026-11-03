@@ -8,12 +8,43 @@ pitch transcription and string/fret assignment are not implemented yet.
 
 ## Current milestone
 
-Start `04_tracking_pitch.ipynb` for the latest step (or run
-`python pitch_tracking_lesson.py`). It analyzes the same 11.9-second P1 excerpt
+The newest check is `06_tracking_a_scale.ipynb` (or
+`python scale_tracking_lesson.py`): first 8 seconds of P2's C-scale direct-input
+recording, with unchanged analysis/filter settings. 355/396 windows pass; all
+119 guarded interior windows agree within 50 cents. Windows spanning changes
+can be unstable; see the D3→E3 close-up and per-window decisions. This does not
+establish accurate attack timing or separation of simultaneous ringing notes.
+The scale has no quiet opening; its level reference is explicitly carried from
+P2's single-note recording, not measured as the scale's own noise floor.
+Keep the selected WAV/MIDI under `~/Downloads/P2_scales` (see notebook for paths).
+No new dependencies; raw/accepted candidates and all MIDI labels remain visible.
+
+Sections 5–6 now group accepted windows into note-evidence runs using
+`note_events.group_pitch_windows`. Consecutive windows with the same nearest
+note are joined; rejected/missing windows split runs and gaps stay visible.
+The scale produces 16 runs from all 355 accepted windows. Bars span supporting
+window midpoints, not physical note start/end times. Median Hz and exact source
+sample bounds are exported separately in `P2_scale_C_0-8s_note_evidence.csv`.
+Repeated same-pitch plucks may merge without attack detection; no MIDI labels
+enter grouping. Run `python -m unittest test_note_events -v` for its six tests.
+
+The preceding check is `05_checking_more_audio.ipynb` (or
+`python broader_pitch_check.py`). It compares 0–30 seconds of P1/P2 with the
+existing settings fixed and adds mean/centered-RMS diagnostics without changing
+acceptance. P2 has 67 additional windows dominated by their window mean; the
+existing rule rejects all of them. The only passing example with that diagnostic
+flag remains 3.81 s. P1 has none. Guarded note-interior comparisons show agreement
+within 50 cents for all passing estimates, but P1 rejects 78 interior windows.
+These are overlapping development examples, not full-recording accuracy.
+Separate `0-30s` output files preserve lesson 04's results. No new dependencies.
+
+Start `04_tracking_pitch.ipynb` for the underlying tracker and filter lesson (or run
+`python pitch_tracking_lesson.py`). Select `player = "P1"` or `"P2"` in the first
+cell; the current example is P2. It analyzes an 11.9-second direct-input excerpt
 in 100 ms windows with 20 ms hops: 591 complete windows. The visible loop uses
 audio only, measures pitch candidates/RMS/similarity, then adds MIDI references
-for the plot. Every finite candidate remains visible; there is no smoothing,
-alignment correction, or noise rejection threshold. Constant/no-positive-peak
+for the plot. Every finite candidate remains visible. Sections 9–11 add a
+separate trial acceptance rule; no smoothing or alignment correction is applied. Constant/no-positive-peak
 windows return NaN rather than a made-up pitch.
 
 `pitch_analysis.py` now holds the single-window autocorrelation function shared
@@ -27,9 +58,46 @@ The CSV retains original sample bounds and window midpoints. Midpoints do not
 establish note attack times. This example follows the three ringing pitches but
 produces large pitch jumps during low-level gaps/tails. Similarity depends on
 window duration and is not a confidence probability. Inspect the failure regions
-before adding a simple no-reliable-pitch rule; full event detection, ML, and tabs
+alongside the trial no-reliable-pitch rule; full event detection, ML, and tabs
 are later steps. Saved notebook outputs were executed with project Python and
 validated, not run through a live Jupyter kernel.
+
+The unchanged-settings P2 transfer check follows the three ringing pitches,
+with medians ~81.91/86.96/91.95 Hz in the documented inspection intervals. It also
+exposes high-similarity mismatches: at 7.71 s, 607.59 Hz scores ~0.901. Some P1
+ringing windows have both lower RMS and lower similarity than other P2 gap
+mismatches, so simple global lower thresholds cannot perfectly separate them.
+The notebook records this baseline finding before applying the trial rule.
+Both players' outputs are retained separately. P2's channels are identical in
+the tested excerpt; the existing left-channel policy is used.
+
+Sections 7–8 now compare window RMS with the median RMS of an editable,
+candidate background interval. Only complete windows inside its sample bounds
+are included. P2 ringing levels are roughly 21–52 times this reference in the
+selected intervals, but a second quiet-looking tail has median ratio 1.86.
+These intervals are not verified silence, and overlapping windows are not
+independent observations. Inspect the waveform zoom and level-ratio plot before
+interpreting the trial thresholds. The underlying pitch estimator is unchanged.
+
+Sections 9–11 try RMS >= 3x reference, similarity >= 0.80, and two consecutive
+eligible windows within 50 cents (half a semitone). The notebook explains each
+check, plots raw/passing candidates, and saves *_pitch_decisions.csv with raw
+values, accepted Hz, flags, reasons and settings. Rejected means no reliable
+pitch under this rule, not proven silence. New notes can qualify on their second
+eligible window; quiet tails, attacks, bends and fast notes may be rejected.
+P1 has 546/591 passing windows; P2 has 528/591. These are not accuracy scores.
+A known remaining mismatch is P2's 317.88 Hz at 3.81 s, which passes all checks.
+Stable wrong pitches can pass, and overlapping windows are not independent.
+Change the section 10 zoom to 3.5–4.2 s to inspect that failure. No thresholds
+were retuned to remove it; review before expanding to longer recordings.
+
+Section 12 compares P2's suspicious 3.81 s window with clear ringing at 1.01 s:
+original waveforms, autocorrelation curves and selected-shift overlays. The
+suspicious estimate selects a tiny local bump on a broadly declining curve,
+while the ringing example has a distinct peak. This diagnostic changes no
+settings or decisions; it also documents the difference between raw and
+mean-subtracted RMS. Next inspect more audio with settings fixed, rather than
+tuning to this example. The PNG is saved with suffix _candidate_diagnostic.png.
 
 The preceding dataset lesson is `03_guitartechs_labels.ipynb`, with matching
 `guitartechs_labels_lesson.py`. It reads the first 11.9 seconds of P1's Guitar-TECHS

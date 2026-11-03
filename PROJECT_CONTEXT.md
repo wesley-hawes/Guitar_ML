@@ -1,16 +1,301 @@
 # Guitar ML — project handoff
 
-Last updated: 2026-10-28. Read this alongside README.md and the actual code.
+Last updated: 2026-11-03. Read this alongside README.md and the actual code.
 Verify the current files and Git status before making changes; this document is
 a checkpoint, not a substitute for inspecting the project.
 
-## Resume here — end-of-session handoff (2026-10-28)
+## Resume here — pitch windows grouped into evidence runs (2026-11-03)
 
-User explicitly asked to stop development here, remember the findings/learning,
-and commit/push the current work. No acceptance/rejection rule was implemented.
-Do not start further analysis until the user resumes it.
+Wrap-up: user approved the result and requested a meaningful commit and GitHub
+push for all pending lesson/filter/grouping work. Reviewed the ten changed/new
+project files; generated outputs and external audio remain excluded. All 21
+tests passed in the completed grouping checks, and git diff --check is clean.
+Intended commit: "Add pitch filtering and group scale estimates into note evidence".
+The fetch attempt failed with "Could not resolve host: github.com" in this tool
+environment. Check actual Git log/status and push output for the final result;
+do not equate a local commit or cached origin/main with a successful upload.
 
-Current verdict: lesson 04's 100 ms / 20 ms sliding baseline follows the three
+User authorized grouping accepted estimates into note intervals, retaining
+uncertainty around transitions. Added sections 5–6 to notebook 06 and its script,
+plus pure function group_pitch_windows in note_events.py. The estimator and
+acceptance thresholds are unchanged; existing window CSVs remain unchanged.
+
+Grouping: map Hz to nearest equal-tempered note via
+floor(69 + 12*log2(hz/440) + 0.5), A4=440. Join consecutive accepted windows
+only while the assigned note stays the same. Rejected rows, missing-hop rows,
+and pitch-name changes split runs. No gap filling, duration cutoff, pruning,
+or MIDI-derived decisions. Keep singleton runs and the final run. Raw median
+Hz is retained, not snapped to the nominal note. Grouping only receives audio
+fields explicitly extracted from rows, not MIDI-derived comparison fields.
+
+Result: 355 accepted frames become 16 evidence runs, F2 G2 A2 B2 C3 D3 E3 F3
+G3 A3 B3 C4 D4 E4 F4 G4. These are not confirmed physical note events or an
+accuracy score. D3 midpoint span 2.51–2.93 s; E3 3.01–3.43 s. Rejected gap
+stays visible. Their underlying source sample spans overlap by 20 ms because
+the analysis windows overlap; this is not evidence of simultaneous sound.
+
+Table and plot show first/last supporting window MIDPOINTS, not inferred onset,
+offset, or duration. CSV also includes first/last frame indices, window count,
+median frequency, note number/name, source sample bounds, and sample rate.
+Separate output files: P2_scale_C_0-8s_note_evidence.csv / .png under ignored
+outputs/pitch_tracking. Gray crosses show rejected raw estimates; green bars
+are grouped midpoint spans; original MIDI intervals are a separate lower panel.
+Brief D#4 label and excerpt-edge A4 remain in the comparison; no groups were
+fabricated to match them. All 355 accepted frames are assigned exactly once.
+
+Validation: 6 new test_note_events tests, 21 repository tests total all pass.
+Covers pitch change/final singleton, rejected gaps despite source-span overlap,
+missing windows, original timeline offsets, nonmutation, gradual drift across
+note bins, independence from MIDI fields, empty/invalid inputs. Seven notebook
+cells executed directly with project Python, schema valid, plot inspected.
+Original CSV hashes unchanged; frame membership and midpoint/source bounds
+checked against scale rows. No new dependencies or commit/push requested.
+
+Next: user reviews section 5's rule and one group's member rows, then section 6's
+plot. Try a passage with repeated pitches to show what attack detection must add.
+Same-note plucks without rejection may merge; rejection can fragment one played
+note; bends/vibrato can cross bins. No confidence percentages, acoustic overlap
+separation, exact timing, or tablature/string assignment has been added.
+
+## Previous checkpoint — P2 scale transitions checked (2026-11-03)
+
+User chose scales next and expects overlap between notes to be difficult. Added
+06_tracking_a_scale.ipynb and scale_tracking_lesson.py. Extracted only
+P2_scales/audio/directinput/directinput_C.wav and P2_scales/midi/midi_C.mid
+from Downloads/P2_scales.zip into Downloads, preserving paths. No third-party
+audio copied into repo. Scale WAV is 160 s, 48 kHz, stereo PCM24; analyze first
+8 s only. Channels identical in excerpt. Filename C, but sequence starts F2;
+use actual labels, not assumed root. Main ascent reaches G4, with A4 label
+starting ~7.998 s at the edge. Brief D#4 label (~19 ms near 6.93 s) retained.
+
+Settings unchanged: 100 ms windows / 20 ms hop, 60–1,000 Hz estimator, raw level
+>=3x reference, similarity >=0.80, successive eligible pitches <=50 cents apart.
+Scale begins with notes, so carried EXACT P2 single-note raw-RMS reference
+0.0002565 from 7.70–7.86 s in the original single-note WAV. This is explicitly
+provisional cross-file calibration; same player/source does not guarantee same
+noise or gain. No scale-specific silence assumption, offset fix or tuning.
+
+Results: 396 windows, 355 pass. 119 guarded MIDI-interior windows all pass and
+are <=50 cents from reference. Guard requires whole window inside one label
+with 100 ms margins. This is not full transcription accuracy. 42 windows
+intersect multiple label spans; 21 pass a single pitch. These windows may
+straddle sequential notes without actual simultaneous sound. Physical overlap
+has not been measured or separated. Estimator still outputs one frequency.
+
+Zoom 2.75–3.35 s: MIDI D3 (A string) → E3 (D string). Shaded [2.94:3.04] s
+window midpoint 2.99 intersects both labels with a gap between. Midpoint 2.93:
+147.7 Hz / score .824 passes; 2.95: 155.8 Hz / .427 rejected; 2.99: 164.4 Hz /
+.869 waits for predecessor; 3.01: 164.4 Hz / .909 passes. These are window
+midpoints, NOT attack times. 3.01 covers [2.96:3.06] s and includes audio after
+MIDI start ~3.019. Keep annotation timing uncertainty visible; no correction.
+
+Verification: original CSVs unchanged by notebook execution, five cells run
+directly with project Python, notebook schema validated, plot viewed. Scale
+decisions/reasons match lesson 04's original rule for all 396 rows; exact carried
+reference verified, frame bounds/midpoints and reported comparisons checked.
+Outputs: outputs/pitch_tracking/P2_scale_C_0-8s_transitions.png and
+P2_scale_C_0-8s_windows.csv (ignored). No new dependencies. No commit/push.
+
+Next: review notebook 06's overview and transition table, then group passing
+windows into rough note events with uncertain gaps visible. Repeated same-pitch
+picking needs attack detection later. Do not treat passing windows spanning
+labels as successful separation of overlapping pitches. Chords remain future
+work; no more tuning around 318 Hz or faint note ends.
+
+## Previous checkpoint — broader check completed, settings unchanged (2026-11-03)
+
+User asked to check whether the weak/offset-dominated pattern occurs elsewhere,
+explicitly avoiding overfitting. Added 05_checking_more_audio.ipynb and matching
+broader_pitch_check.py. They inspect first 30 s of BOTH P1/P2 with unchanged
+100 ms windows, 20 ms hops, 60–1,000 Hz search, same manual raw-RMS references,
+and same 3x / 0.80 / 50-cent acceptance rule. Lesson 04 is preserved. New tagged
+CSV/PNG files live in ignored outputs/pitch_tracking; original CSVs unchanged.
+
+New measurements only: window mean, centered RMS, mean**2 / raw_RMS**2. Verified
+raw_RMS**2 = centered_RMS**2 + mean**2. More than 0.5 is a REVIEW flag indicating
+majority mean contribution, NOT a filter, truth label, or proof of noise. The
+centered RMS plot uses the same raw background denominator for comparison; no
+recalibrated alternative detector or preprocessing change was applied.
+
+Results per player: 1,496 overlapping windows, eight MIDI note spans (last is
+partial). P1 passes 1,247; P2 passes 1,311. P1 has zero majority-mean windows.
+P2 has 106, including 67 after the previous 11.9 s excerpt. All 67 new ones are
+rejected by the existing rule. The only passing majority-mean window remains
+3.81 s / 317.88 Hz. Thus the offset pattern recurs, but no additional passing
+instance was found by this diagnostic. This does not rule out other failure types.
+
+MIDI comparison uses complete audio windows inside label intervals with 100 ms
+guards at both ends. P1 passes 1,171 / 1,249 such windows (78 rejected); P2 passes
+all 1,207. All passing interior estimates differ from nominal MIDI by <=50 cents.
+This is conditional interior agreement, not whole-recording accuracy: boundaries
+are excluded and windows overlap. Do not hide the rejected P1 coverage. MIDI
+enters only after prediction/acceptance, never to choose a candidate or filter.
+
+Verification: all 591 existing windows/decisions per player reproduce; existing
+CSV hashes unchanged. Checked 1,496 frame boundaries, hops, midpoints and fraction
+bounds; executed four new notebook cells directly with project Python, validated
+schema and visually inspected plot. No new dependencies or algorithm changes.
+The small diagnostic repeats the explicit acceptance calculation from lesson 04;
+old-window agreement is checked, but shared extraction/tests remain future cleanup.
+
+Next: review notebook 05's plot and results. Keep current thresholds. Briefly
+inspect some rejected P1 note interiors to understand coverage losses, then
+advance toward note-event grouping rather than tuning this isolated 318 Hz case.
+Only low single notes on these two recordings were checked; fast picking,
+chords, other strings/performers remain unvalidated. No commit or push requested.
+
+## Previous checkpoint — diagnostic plotted, settings unchanged (2026-11-02)
+
+User requested plotting the suspicious window while explicitly avoiding
+overfitting to an outlier. Added section 12 to notebook 04 and matching script:
+side-by-side original waveform, full search-lag correlation curve, and first
+30 ms selected-shift overlay for window midpoints 1.01 and 3.81 s. Original
+waveform panels share amplitude limits; overlay panels have separate scales.
+No FFT, smoothing, preprocessing, thresholds, or estimator changes.
+
+P2 results: 1.01 s ([46080:50880]) selects lag 586 / 81.91 Hz / 0.8810;
+3.81 s ([180480:185280]) selects lag 151 / 317.88 Hz / 0.8498. The former
+has a distinct correlation peak. The latter has tiny local bumps on a broadly
+declining correlation curve, not the same clear cycle structure. The estimator
+requires a positive local maximum but not prominence above neighboring shifts.
+A high score can reflect slowly varying structure; physical origin unknown.
+
+Additional measured observation: suspicious-window raw RMS 0.00218877, mean
+-0.00212395, centered RMS 0.000528726. Raw RMS includes the mean whereas the
+pitch estimator subtracts it. Documented this difference for later investigation;
+do not change preprocessing from this single example. Clear-window raw RMS
+0.00927535 versus centered RMS 0.00918610. No listening test performed by agent.
+
+All 12 notebook code cells executed directly with project Python, schema valid,
+plot visually inspected. Diagnostic lag/score matches shared estimator via
+assertions. Existing P2 CSVs remain byte-for-byte unchanged, 528/591 passing
+windows retained. Saved plot: outputs/pitch_tracking/
+P2_singlenotes_candidate_diagnostic.png (ignored by Git). No new dependencies.
+
+Next: user reviews section 12, then expand to 0–30 s with settings fixed and
+inspect more note interiors/transitions. Do not add a 318 Hz exception or tune
+to this timestamp. This is development data, not held-out evaluation. Changes
+remain uncommitted; no push requested.
+
+## Previous checkpoint — review and listening clarification (2026-11-02)
+
+User returned to understand the current work, limitations, and next steps before
+further coding. Reviewed the estimator, window loop, MIDI loader, background
+selection, and acceptance loop. No algorithm changes made in this review.
+All 15 repository tests pass. Notebook/script sources match. Re-executing the
+decision cell against saved raw values reproduces P1 546/591 and P2 528/591.
+Additional review checks cover new-pitch reacquisition, NaN breaks, low-level
+periodic candidates, and stable misleading candidates. These filter checks are
+ad hoc; the repository test suite does not yet include the acceptance loop.
+
+Important listening clarification: the user listened near P2 3.8 s and heard
+nothing unusual. Do NOT equate the suspicious 317.88 Hz estimate with an audible
+new note or a proven physical source. Reading original samples [180480:185280]
+(3.76–3.86 s) reproduces lag 151, frequency 317.8808 Hz, similarity 0.84978,
+level ratio 8.5336, and zero cents difference from the prior candidate. It passes
+the implemented checks. Its acoustic cause has not been established. Historical
+wording below calling this a wrong pitch/failure is stronger than the evidence;
+describe it as a suspicious estimate inconsistent with surrounding played notes.
+
+Review concerns: (1) the manual reference uses only 2 overlapping P1 / 4 P2
+windows and isn't confirmed pure noise; changing to a later excerpt excluding
+that reference makes section 7 raise an error; (2) the continuity check compares
+adjacent raw candidates, not an established note, and 80% sample overlap means
+briefly stable incorrect estimates can pass; (3) the fixed similarity cutoff
+inherits the estimator's lag/window-length bias; (4) acceptance logic remains
+duplicated in notebook/script and lacks committed regression tests. Current
+function separation and exact original sample indices are sound for this lesson.
+
+Recommended next step: one short diagnostic of the 3.76–3.86 s window versus a
+clear ringing window, showing the waveform, lag curve and selected shift. Keep
+thresholds fixed and don't infer a physical cause from an algorithmic repeat.
+Then expand the excerpt (e.g. 0–30 s, retaining the reference) to inspect more
+notes before choosing changes. Later extract the acceptance calculation into a
+small tested pure function when reusing it; don't perform a broad refactor now.
+After broader inspection, group passing windows into note events and handle
+repeated picking with attack detection. Chords and string/fret assignment remain
+future work. Latest changes are still uncommitted on main; no push requested.
+
+## Previous milestone — first pitch acceptance experiment (2026-10-29)
+
+User authorized coding level/repetition/continuity checks. Lesson 04 sections
+9–11 now add an explicit, readable loop AFTER the unchanged raw measurements:
+RMS/reference >= 3, similarity >= 0.80, and current/previous windows both pass
+those checks with candidate frequencies within 50 cents. Cents = absolute
+1200*log2(current/previous). These are unoptimized trial parameters, fixed for
+P1/P2. MIDI is not used in decisions. Reference intervals are still manual and
+provisional; no automatic noise estimation or note-end detector exists.
+
+The previous RAW eligible window is used, not the last accepted pitch. New
+pitches can qualify on their second eligible window; no backfill. First window
+fails. NaN/below-level/weak-repetition breaks the sequence. This adds one hop
+(20 ms) for confirmation, beyond a 100 ms window; overlap is not independent
+confirmation. Bends/fast notes/attacks may be rejected; stable wrong tones pass.
+
+Outputs retain raw Hz and exact original sample boundaries. Separate
+*_pitch_decisions.csv stores each Boolean check, cents change, accepted Hz (NaN
+if rejected), all applicable rejection reasons, background bounds/reference RMS,
+and settings. *_pitch_filter.png shows full and zoomed raw/passing candidates,
+level and similarity. Green means passes trial rule, not proven correct pitch.
+
+Results: P1 546/591 and P2 528/591 pass. These are counts, NOT accuracy. All
+complete windows in five selected ringing intervals pass for both. P2 607.59 Hz
+at 7.71 s fails level; 666.67 Hz at 3.87 s fails cents agreement. BUT 317.88 Hz
+at 3.81 s passes all checks, a known remaining mismatch. Do not retune solely
+for it. The rule checks adjacent agreement, not tracking a whole fading note.
+P1 retains two windows in the second candidate tail; it is not confirmed noise.
+
+Next with user: read section 9, trace one accepted/rejected row in section 10,
+and inspect the known 3.81 s failure by changing zoom to 3.5–4.2 s. Then inspect
+more audio with settings fixed before note-event grouping/attack detection.
+Keep the pace educational; avoid repeatedly tuning the same two excerpts.
+
+Verified synthetic stable tones, octave change/reacquisition, low-level periodic
+signals, loud weak-repetition signals, missing pitches, and the known stable-
+wrong-tone limitation. Ran both players and checked raw measurements/sample
+bounds unchanged, accepted Hz unchanged, rejected Hz NaN, and reasons present
+for every rejection. Notebook cells executed directly with project Python, not
+live Jupyter. No new dependencies; no commit/push requested.
+
+### Previous step — background comparison
+
+Latest step: user agreed to inspect background-relative level before choosing
+a filter. Sections 7–8 in lesson 04 now reuse existing 100 ms RMS windows,
+selecting only windows fully inside an editable candidate interval by ORIGINAL
+sample bounds. Median selected RMS is a provisional reference; each window's
+RMS divided by it gives a level ratio. It is not SNR or an acceptance threshold.
+The pitch estimator and raw CSV measurements remain unchanged.
+
+P2 candidate 7.70–7.86 s contains four overlapping windows, median RMS
+0.0002565. Selected ringing intervals span approximately 21–52 times that
+reference. A second candidate tail at 11.60–11.90 s has median ratio 1.86,
+range 1.54–2.29. These are visually selected low-level intervals, NOT confirmed
+background-only recordings; no listening verification was performed. They may
+contain residual vibration or handling noise. MIDI gaps do not define silence.
+P1 has its own editable 7.78–7.90 s selection with only two complete windows.
+This is a small teaching comparison, not a robust automatic noise estimator.
+
+Previous next-step plan (now implemented above): try one explicit level-plus-
+similarity rejection experiment on both players. Preserve raw candidates and
+rejection reasons; rejected means "no reliable pitch", not necessarily silence.
+Similarity cannot guarantee correct pitch, and thresholds may cut quiet tails.
+At that checkpoint persistence was still only an idea; avoid delaying/missing
+fast notes by adding it without evidence. Do not assume the first 0.5 s is quiet.
+
+Executed all eight notebook code cells directly in the project interpreter,
+validated notebook format, and visually checked the P2 comparison plot. Also
+ran the script for P1 and checked that existing numerical estimates were
+unchanged, selected windows lie wholly inside the interval, and the median
+reference ratio equals one. No new dependencies or algorithm tests were needed.
+Generated comparison PNGs are ignored under outputs/pitch_tracking. Changes
+remain local and uncommitted; no push was requested for this step.
+
+The user resumed on 2026-10-29 and explicitly asked to test P2. The unchanged
+raw baseline has now been tested on P2 before choosing rejection thresholds.
+At that transfer checkpoint, no rejection rule was implemented. See the transfer findings
+below; they qualify the earlier plan to use simple RMS/similarity thresholds.
+
+Earlier P1 verdict: lesson 04's 100 ms / 20 ms sliding baseline follows the three
 ringing pitches consistently. Median estimates over 0.5–3.5, 4.5–7.5, and
 8.5–11.5 seconds are ~82.76, 87.91, 93.02 Hz versus nominal MIDI references
 82.41, 87.31, 92.50 Hz. Low-level gaps/tails can still yield spurious pitches;
@@ -26,10 +311,13 @@ this calculation; gain reduction alone does not necessarily reduce normalized
 similarity. Noise, changing vibration, and the shorter-window overlap penalty
 can affect it. The 100 ms scores cannot directly inherit half-second thresholds.
 
-Agreed next step on resumption:
-1. Add a small, explicit trial acceptance/rejection rule using level and
-   autocorrelation evidence, retaining raw candidates and showing rejected ones.
-2. Test unchanged settings on P2 single notes to check transfer before tuning.
+Earlier next-step direction (filter experiment now implemented above):
+1. Review P2's high-score mismatches: a fixed lower bound on RMS and similarity
+   alone cannot cleanly separate all observed ringing and gap candidates.
+2. Design a small explainable rejection experiment that considers nearby pitch
+   consistency/local level changes as well. Preserve raw candidates and test both
+   P1 and P2 without narrowing pitch bounds to their known labels. Timing delay
+   and rejection of valid fast/leaping notes must be considered. No rule had been selected at that point.
 3. Later group accepted pitch windows into note events; repeated same-pitch
    picking will need attack detection. No extended MIDI alignment project first.
 
@@ -38,6 +326,47 @@ Preserve the user's preference against overengineering and black-box additions.
 All 15 tests passed at wrap-up. Lesson 02 now contains the user's saved 5–5.5 s
 experiment; preserve that edit (the older script still defaults to 3–3.5 s).
 Read the Git checkpoint below before assuming changes reached GitHub.
+
+### P2 transfer results — 2026-10-29
+
+`04_tracking_pitch.ipynb` and its script now have an explicit `player = "P2"`
+setting. Change to P1 to reproduce the previous run. Both use 0–11.9 s, 48 kHz,
+100 ms / 20 ms windows, 60–1,000 Hz bounds, and the unchanged `pitch_analysis.py`.
+P2 stereo channels are exactly identical in this excerpt; use the left channel
+as already defined. No mixing, normalization, gating, or MIDI timing changes.
+
+P1 and P2 have the same 591 original sample windows. P2 has finite mathematical
+candidates in all 591, not 591 reliable notes. Median candidate frequencies in
+the previously chosen 0.5–3.5 / 4.5–7.5 / 8.5–11.5 s inspection intervals:
+- P1: 82.76 / 87.91 / 93.02 Hz.
+- P2: 81.91 / 86.96 / 91.95 Hz.
+- Nominal MIDI references: E2 82.41 / F2 87.31 / F#2 92.50 Hz.
+These are selected-interval summaries, not held-out accuracy measurements.
+P2 follows the ringing sequence but produces larger excursions in gaps/tails.
+
+Key counterexample: P2 midpoint 7.71 s yields 607.59 Hz with similarity 0.9013
+and RMS 0.0005629, in a gap between labels. Another at 3.87 s yields 666.67 Hz,
+similarity 0.8780, RMS 0.001389. Some P1 ringing windows have both lower RMS and
+lower similarity than that second mismatch. Thus simply raising both minimum
+thresholds cannot retain every useful P1 frame while rejecting all P2 mismatches.
+This demonstrates periodicity is not correctness. Physical causes of the spurious
+matches have not been identified; do not call every gap pure noise or silence.
+
+For inspection only, candidates outside 75–110 Hz numbered 9 for P1 and 35 for
+P2. This broad band is specific to these three notes, NOT a filter, validity label,
+or general error metric. Full P2 finite range: 60.15–923.08 Hz. Last frame:
+271.19 Hz, similarity 0.3515, RMS 0.000588. All finite candidates stay plotted.
+
+Regenerated P1 with the same current code and confirmed its saved numerical
+results are unchanged. Verified P1/P2 window indices match, 591 frame widths/
+hops/midpoints/RMS, and notebook schema. Executed notebook cells directly with
+project Python (not live kernel), inspected plot, and added results explanation
+to notebook 04. Separate CSV/PNG outputs remain in ignored outputs/pitch_tracking.
+No algorithm changed; existing unit tests were not unnecessarily rerun.
+
+P2 is now an inspected development example. If used to choose thresholds, it
+must not later be presented as an untouched test set. Only its first three notes
+were analyzed; this does not establish full-dataset, chord, or fast-note performance.
 
 ## Purpose
 
@@ -648,5 +977,6 @@ establish upload success; check the push result and fresh remote state. If neede
 the user can run `git push origin main` from their network-enabled terminal.
 Dataset ZIPs/audio stay in Downloads and generated tracking outputs are ignored.
 
-Resume with the small rejection-rule/P2 transfer experiment described at the top,
-only when the user returns. Do not proceed with that work during this wrap-up.
+The user subsequently resumed on 2026-10-29. At that start, local main and the
+cached origin/main matched with a clean tree. The P2 transfer edits are a new
+working change; see actual Git status before any further commit/push.
