@@ -1,0 +1,77 @@
+{
+  "session": "2026-11-03",
+  "reported_setup": {
+    "pickup": "neck + middle",
+    "tone": "pretty dry (user description; processing not independently confirmed)",
+    "metronome": false,
+    "interface_gain": "not yet confirmed for this batch",
+    "export_normalization": "not yet confirmed"
+  },
+  "intended_phrase_pitch_classes": [
+    "A",
+    "G",
+    "E",
+    "D",
+    "G",
+    "E",
+    "D",
+    "C",
+    "E",
+    "D",
+    "C",
+    "A"
+  ],
+  "intended_octaves": [
+    "A3",
+    "G3",
+    "E3",
+    "D3",
+    "G3",
+    "E3",
+    "D3",
+    "C3",
+    "E3",
+    "D3",
+    "C3",
+    "A2"
+  ],
+  "phrase_repetition_count": null,
+  "c_to_a_pattern": "User confirmed 20 plucks: five Cs, five As, five Cs, five As; predicted C3/A2, exact C/A frets not separately confirmed.",
+  "background_reference": {
+    "source_id": "dynamics",
+    "start_seconds": 1.2,
+    "stop_seconds": 1.4,
+    "status": "visually/level-selected candidate quiet interval; user confirmation pending; shared provisionally across batch"
+  },
+  "recordings": [
+    {
+      "id": "baseline",
+      "path": "data/raw/AmPentatonicPattern - 11:3:26, 4.34\u202fPM.wav"
+    },
+    {
+      "id": "dynamics",
+      "path": "data/raw/AmPentatonicPatternDynamicsAdded - 11:3:26, 4.40\u202fPM.wav"
+    },
+    {
+      "id": "faster",
+      "path": "data/raw/AmPentatonicPatternFaster - 11:3:26, 4.41\u202fPM.wav"
+    },
+    {
+      "id": "c_to_a",
+      "path": "data/raw/CtoA.wav"
+    },
+    {
+      "id": "fastest",
+      "path": "data/raw/AmPentatonicPatternFastest - 11:3:26, 4.57\u202fPM.wav"
+    }
+  ],
+  "phrase_position": "User confirms standard fifth-position A minor pentatonic, starting D-string A and ending low-E-string A; implies D7 A3 to low-E5 A2 in standard tuning.",
+  "early_dynamics_E2_review": "User cannot hear anything before intended first A. Treat E2 at 0.81\u20131.09 s as unwanted relative to intended phrase; physical origin unresolved. Do not tune it away.",
+  "attack_candidate_settings": {
+    "minimum_level_ratio": 3.0,
+    "minimum_rise_ratio": 1.5,
+    "minimum_rise_over_reference": 3.0,
+    "minimum_separation_seconds": 0.08,
+    "status": "Initial heuristic frozen before inspecting fastest or candidate outputs; not optimized/validated. 10 ms RMS, 40 ms history, ~2 ms hop."
+  }
+}

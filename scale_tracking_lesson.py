@@ -1,6 +1,7 @@
 # %% [markdown]
 # # First scale check: transitions before chords
-# P2's C-scale direct-input recording, first 8 seconds, with the SAME estimator,
+# The selected player's C-scale direct-input recording, with the SAME estimator,
+# initially checked over 8 s; current 9.3 s excerpt includes repeated A4.
 # 100 ms windows, 20 ms hops, 60–1,000 Hz bounds, and 3x / 0.80 / 50-cent rule.
 # The filename is C; read actual MIDI pitches rather than assuming it starts on C.
 # The first sections test the unchanged tracker. Sections 5–6 add simple
@@ -14,8 +15,9 @@
 #   represent both pitches; MIDI overlap alone does not prove acoustic overlap.
 #
 # Keep the extracted audio/MIDI in Downloads. If not extracted yet, unzip ONLY
-# P2_scales/audio/directinput/directinput_C.wav and P2_scales/midi/midi_C.mid
-# from ~/Downloads/P2_scales.zip into ~/Downloads, preserving those subfolders.
+# P1_scales/audio/directinput/directinput_C.wav and P1_scales/midi/midi_C.mid
+# from ~/Downloads/P1_scales.zip into ~/Downloads, preserving those subfolders.
+# For player P2, substitute P2 in those paths.
 # Use the existing Guitar ML (.venv) kernel; no new dependencies.
 
 # %%
@@ -27,10 +29,12 @@ import matplotlib.pyplot as plt
 from pitch_analysis import estimate_period
 from guitartechs_midi import read_note_labels
 
-folder = Path.home() / 'Downloads/P2_scales'
+player = 'P2'  # Current repeated-A4 example; 'P1' uses the same settings.
+folder = Path.home() / 'Downloads' / f'{player}_scales'
 audio_path = folder / 'audio/directinput/directinput_C.wav'
 midi_path = folder / 'midi/midi_C.mid'
-excerpt_seconds = 8.0
+excerpt_seconds = 9.3  # Includes both A4 labels; use 8.0 for the initial comparison.
+output_tag = f'{player}_scale_C_0-{excerpt_seconds:g}s'
 window_seconds, hop_seconds = 0.100, 0.020
 minimum_frequency, maximum_frequency = 60.0, 1000.0
 minimum_level_ratio, minimum_similarity, maximum_step_cents = 3.0, 0.80, 50.0
@@ -48,17 +52,19 @@ if audio.ndim == 2:
 
 # %% [markdown]
 # ## 1. Carry over the old reference; don't pretend the opening is silence
-# Use exactly the P2 single-note reference from lessons 04–05, computed from its
-# original 100 ms windows fully inside 7.70–7.86 s. The scale starts with notes.
+# Use the selected player's single-note reference from lessons 04–05. Original
+# 100 ms windows lie inside 7.78–7.90 s for P1 or 7.70–7.86 s for P2.
+# We do not assume the opening of a scale is silence.
 # Same player/source type does NOT guarantee identical gain/noise across files:
 # this is an explicitly provisional transfer, not a measured scale noise floor.
 # Inspect raw estimates even when the level check rejects them.
 
 # %%
-reference_path = Path.home() / 'Downloads/P2_singlenotes/audio/directinput/directinput_allsinglenotes.wav'
+reference_path = Path.home() / 'Downloads' / f'{player}_singlenotes' / 'audio/directinput/directinput_allsinglenotes.wav'
 reference_info = sf.info(reference_path)
 reference_rate = reference_info.samplerate
-reference_start, reference_stop = round(7.70 * reference_rate), round(7.86 * reference_rate)
+reference_interval = {'P1': (7.78, 7.90), 'P2': (7.70, 7.86)}[player]
+reference_start, reference_stop = [round(t * reference_rate) for t in reference_interval]
 reference_audio, _ = sf.read(reference_path, start=reference_start, stop=reference_stop)
 reference_signal = reference_audio[:, 0] if reference_audio.ndim == 2 else reference_audio
 reference_width, reference_hop = round(window_seconds * reference_rate), round(hop_seconds * reference_rate)
@@ -185,7 +191,7 @@ for ax in (axes[0], axes[2]):
     ax.set(yscale='log', ylim=(55, 1100), ylabel='Candidate Hz')
     ax.set_yticks([60, 100, 200, 400, 800], labels=['60', '100', '200', '400', '800'])
     ax.minorticks_off()
-axes[0].set(title='P2 C-scale recording: 100 ms windows, 20 ms hops, unchanged filter', xlim=(0, excerpt_seconds))
+axes[0].set(title=f'{player} C-scale recording: 100 ms windows, 20 ms hops, unchanged filter', xlim=(0, excerpt_seconds))
 axes[0].legend(loc='upper left', bbox_to_anchor=(1.01, 1), fontsize=8)
 zoom_start, zoom_stop = round(2.75 * rate), round(3.35 * rate)
 axes[1].plot(np.arange(zoom_start, zoom_stop) / rate, signal[zoom_start:zoom_stop], linewidth=0.5, color='0.35')
@@ -206,14 +212,14 @@ for ax in axes[1:]:
             ax.axvline(note['start_seconds'], color='tab:blue', linestyle=':', alpha=0.6)
 output_folder = Path('outputs/pitch_tracking')
 output_folder.mkdir(parents=True, exist_ok=True)
-fig.savefig(output_folder / 'P2_scale_C_0-8s_transitions.png', dpi=150)
+fig.savefig(output_folder / f'{output_tag}_transitions.png', dpi=150)
 plt.show()
 print('Midpoint  Hz     Score  Level  Decision / reference spans')
 for row in rows:
     if 2.85 <= row['midpoint_seconds'] <= 3.25:
         print(f"{row['midpoint_seconds']:.2f}   {row['candidate_hz']:6.1f}  {row['similarity']:.3f}  {row['level_ratio']:5.1f}  "
               f"{'PASS' if row['accepted'] else row['rejection_reasons']} / {row['intersecting_label_names']}")
-path = output_folder / 'P2_scale_C_0-8s_windows.csv'
+path = output_folder / f'{output_tag}_windows.csv'
 with path.open('w', newline='') as handle:
     writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
     writer.writeheader()
@@ -221,7 +227,7 @@ with path.open('w', newline='') as handle:
 print('Saved:', path)
 
 # %% [markdown]
-# ## What this first scale check tells us (2026-11-03)
+# ## Earlier P2 result (2026-11-03; historical comparison)
 # 396 windows; 355 pass. All 119 guarded interior windows pass and agree within
 # 50 cents of their labels. This is conditional interior agreement, not 100%
 # transcription accuracy: transition regions are deliberately excluded.
@@ -326,13 +332,13 @@ for ax in event_axes:
     ax.minorticks_off()
     ax.grid(alpha=0.2)
     ax.legend(loc='upper left', bbox_to_anchor=(1.01, 1), fontsize=8)
-event_axes[0].set_title('Grouped pitch evidence — gaps preserved, no attack times inferred')
+event_axes[0].set_title(f'{player}: grouped pitch evidence — gaps preserved, no attack times inferred')
 event_axes[1].set_xlabel('Original-file time (s)')
-event_fig.savefig(output_folder / 'P2_scale_C_0-8s_note_evidence.png', dpi=150)
+event_fig.savefig(output_folder / f'{output_tag}_note_evidence.png', dpi=150)
 plt.show()
 
 # Keep the old per-window CSV unchanged. Export the grouping separately.
-event_path = output_folder / 'P2_scale_C_0-8s_note_evidence.csv'
+event_path = output_folder / f'{output_tag}_note_evidence.csv'
 event_fields = ['event_id', 'note_number', 'note_name', 'median_hz', 'window_count',
                 'first_frame_index', 'last_frame_index', 'first_midpoint_seconds',
                 'last_midpoint_seconds', 'source_start_sample', 'source_stop_sample_exclusive', 'sample_rate']
@@ -343,7 +349,7 @@ with event_path.open('w', newline='') as handle:
 print('Saved:', event_path)
 
 # %% [markdown]
-# ## Grouping result and limits
+# ## Earlier P2 grouping result and limits (historical comparison)
 # 355 accepted windows form 16 runs, F2 → G2 → A2 → B2 → C3 → D3 → E3 → F3
 # → G3 → A3 → B3 → C4 → D4 → E4 → F4 → G4, without using MIDI labels to group.
 # No accepted window is discarded. For example, D3 has midpoint evidence from
@@ -357,3 +363,123 @@ print('Saved:', event_path)
 # Next inspect one group's member rows, then try a passage with repeated pitches
 # to see what attack detection must add. Keep uncertainty visible rather than
 # bridging every gap or tuning durations until these 16 bars match the labels.
+
+# %% [markdown]
+# ## P1 transfer result and the next attack example (2026-11-03)
+# `player = 'P1'` selects the corresponding scale and P1's old single-note
+# reference. Set `player = 'P2'` to reproduce the preceding example. Both use
+# unchanged estimator, acceptance and grouping settings. Outputs include player
+# and excerpt length so the two examples don't overwrite each other.
+#
+# | First 8 seconds | P1 | P2 |
+# |---|---:|---:|
+# | Analysis windows | 396 | 396 |
+# | Passing windows | 316 | 355 |
+# | Evidence groups | 14 | 16 |
+# | Guarded interior windows passing | 109 / 109 | 119 / 119 |
+# | Passing interior errors >50 cents | 0 | 0 |
+#
+# P1's first 0.9 s contains exact digital zeros and its MIDI sequence starts at
+# A2 around 1.02 s; P2 includes F2 and G2 earlier. Thus the group-count difference
+# is NOT two missed P1 notes. P1's 14 groups follow A2 through G4 once each; no
+# extra fragmentation or merging of neighboring pitches appears in this excerpt.
+# This is a short, slow-scale transfer check, not full transcription accuracy.
+# The carried background reference remains an assumption across files.
+#
+# We also inspected through 9.3 s, holding every setting fixed. Both MIDI files
+# contain two successive A4 labels around 8–9 s:
+# - P1 labels: 8.007–8.472, 8.502–8.935 s. Groups: 7.97–8.41 and 8.47–8.91 s.
+#   Windows at 8.43/8.45 are rejected, causing the grouping to split.
+# - P2 labels: 7.998–8.478, 8.482–8.933 s. ONE group: 7.97–8.91 s, 48 windows.
+#   The second labeled A4 doesn't change pitch or break acceptance.
+#
+# To reproduce the next learning example, set player='P2' and
+# excerpt_seconds=9.3 in the first cell, then run all cells. Inspect 7.8–9.1 s.
+# Saved 0–9.3 s CSVs/plots already exist for both players. Times above are window
+# midpoints or supplied annotations, not measured attack times. The annotations
+# suggest repeated picking; listen/inspect the waveform before asserting exact
+# physical attacks. Next learn an attack cue for P2's merged A4 pair. Do not tune
+# pitch thresholds just to force this split. Chord separation is still future work.
+
+# %% [markdown]
+# ## 7. Inspect the repeated A4 waveform before building an attack detector
+# Current example: player P2, excerpt_seconds=9.3. Inspect 7.8–9.1 s, which
+# includes both A4 labels and a little surrounding audio. If you change player
+# to P1 the same plot inspects P1's pair. No detector or event splitting added.
+#
+# Top: raw waveform over the whole passage. Middle: energy over time, using
+# 10 ms RMS windows advanced by 2 ms, alongside the old 100 ms RMS. At 48 kHz,
+# 10 ms = 480 samples and 2 ms = 96 samples. Smaller windows reveal faster
+# changes but fluctuate more. These are ONLY visualization measurements; the
+# pitch estimator still uses 100 ms / 20 ms and all old acceptance settings.
+# Bottom: close-up around the second A4 label. Dashed lines show supplied MIDI
+# starts, not detected attacks; don't treat annotation timing as exact audio truth.
+# No per-clip normalization, offset removal or gain change is applied.
+
+# %%
+repeat_start_seconds, repeat_stop_seconds = 7.8, 9.1
+repeat_start_sample = round(repeat_start_seconds * rate)
+repeat_stop_sample = round(repeat_stop_seconds * rate)
+if repeat_stop_sample > len(signal):
+    raise ValueError('For the repeated-note plot, set excerpt_seconds=9.3 in the first cell and rerun.')
+repeat_samples = signal[repeat_start_sample:repeat_stop_sample]
+repeat_time = np.arange(repeat_start_sample, repeat_stop_sample) / rate
+energy_width = round(0.010 * rate)
+energy_hop = round(0.002 * rate)
+energy_rows = []
+for start in range(repeat_start_sample, repeat_stop_sample - energy_width + 1, energy_hop):
+    segment = signal[start:start + energy_width]
+    energy_rows.append(dict(start_sample=start, stop_sample_exclusive=start + energy_width,
+        midpoint_seconds=(start + energy_width / 2) / rate,
+        rms=float(np.sqrt(np.mean(segment ** 2)))))
+energy_time = np.array([row['midpoint_seconds'] for row in energy_rows])
+energy_rms = np.array([row['rms'] for row in energy_rows])
+a4_labels = [note for note in labels if note['midi_note'] == 69
+             and note['start_seconds'] < repeat_stop_seconds and note['end_seconds'] > repeat_start_seconds]
+repeat_fig, repeat_axes = plt.subplots(3, 1, figsize=(12, 8), constrained_layout=True)
+repeat_axes[0].plot(repeat_time, repeat_samples, color='0.3', linewidth=0.5)
+repeat_axes[0].set(title=f'{player}: repeated A4 — inspect the change in energy, not a change in pitch',
+                   ylabel='Sample amplitude', xlim=(repeat_start_seconds, repeat_stop_seconds))
+repeat_axes[1].plot(energy_time, energy_rms, color='tab:purple', linewidth=1.2,
+                   label='10 ms RMS, 2 ms hops (inspection only)')
+repeat_axes[1].plot(time, [row['rms'] for row in rows], color='tab:orange', linewidth=1.5,
+                   label='Existing 100 ms RMS, 20 ms hops')
+repeat_axes[1].set(ylabel='RMS amplitude', xlabel='Original-file time (s)',
+                   xlim=(repeat_start_seconds, repeat_stop_seconds))
+repeat_axes[1].legend(fontsize=8, loc='upper left')
+close_start, close_stop = round(8.40 * rate), round(8.56 * rate)
+repeat_axes[2].plot(np.arange(close_start, close_stop) / rate, signal[close_start:close_stop],
+                   color='0.3', linewidth=0.6)
+repeat_axes[2].set(xlim=(8.40, 8.56), ylabel='Sample amplitude', xlabel='Original-file time (s)',
+                   title='Close-up around the second labeled A4')
+for ax in repeat_axes:
+    ax.grid(alpha=0.2)
+    for index, note in enumerate(a4_labels):
+        if ax.get_xlim()[0] <= note['start_seconds'] <= ax.get_xlim()[1]:
+            ax.axvline(note['start_seconds'], color='tab:blue', linestyle='--', alpha=0.8)
+            ax.annotate(f"A4 label {index + 1}", (note['start_seconds'], 0.97),
+                        xycoords=('data', 'axes fraction'), xytext=(4, -3),
+                        textcoords='offset points', va='top', fontsize=8, color='tab:blue')
+repeat_figure_path = output_folder / f'{player}_scale_C_repeated_A4_waveform.png'
+repeat_fig.savefig(repeat_figure_path, dpi=150)
+plt.show()
+energy_path = output_folder / f'{player}_scale_C_repeated_A4_10ms_rms.csv'
+with energy_path.open('w', newline='') as handle:
+    writer = csv.DictWriter(handle, fieldnames=list(energy_rows[0]))
+    writer.writeheader()
+    writer.writerows(energy_rows)
+print(f'Inspected original samples [{repeat_start_sample}:{repeat_stop_sample}], '
+      f'{len(energy_rows)} full energy windows of {energy_width} samples, hop {energy_hop}.')
+for note in a4_labels:
+    print(f"Supplied A4 interval: {note['start_seconds']:.4f}–{note['end_seconds']:.4f} s")
+print('Saved:', repeat_figure_path)
+
+# %% [markdown]
+# For P2, the waveform/short RMS show a dip around 8.44 s followed by renewed
+# energy around 8.45–8.48 s, while the pitch remains near A4. The 100 ms RMS
+# mixes samples across this short dip and smooths it substantially. This is a
+# useful candidate attack cue: a change in energy can mark another pluck even
+# when the frequency doesn't change. We haven't measured an exact attack time.
+# The MIDI start ~8.482 s is a reference marker, not proof the attack began there.
+# Do not set a threshold from this single dip. Next compare the shape with P1
+# and another transition before choosing a simple, explained attack rule.

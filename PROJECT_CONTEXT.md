@@ -4,7 +4,253 @@ Last updated: 2026-11-03. Read this alongside README.md and the actual code.
 Verify the current files and Git status before making changes; this document is
 a checkpoint, not a substitute for inspecting the project.
 
-## Resume here — pitch windows grouped into evidence runs (2026-11-03)
+## Resume here — first attack detector and Fastest take (2026-11-03)
+
+User confirms fifth-position A minor pentatonic from D-string A to low-E A,
+consistent with D7 A3 through low-E5 A2 in standard tuning. C-to-A's 20 plucks
+are correct (5 C, 5 A, repeated). User cannot hear anything before intended A
+in Dynamics; early E2 is unwanted relative to intended phrase, physical cause
+unresolved. Do not claim it is definitely hum or a played low E. Gain/export
+consistency and candidate quiet interval still not explicitly confirmed.
+
+Added Fastest WAV to manifest and notebook 08/script. Unchanged 100 ms/20 ms
+pitch pipeline gives intended 12-note sequence plus B2 at 4.25–4.27 s, 75/312
+passing frames and 13 groups. Intended first/final group starts 1.15/3.11 s,
+span 1.96 s versus baseline 4.10 s (~52% shorter). Several intermediate notes
+have only 3–9 accepted frames; no rule tuned to recover them or remove B2.
+
+New `detect_attack_candidates` in attack_analysis.py returns (episodes,
+frame_decisions). It consumes existing energy measurements, not pitch/labels.
+Frozen initial defaults recorded in session JSON before viewing fastest or
+candidate results: current >=3x reference; current/max(past median,reference)
+>=1.5; positive rise >=3x reference. Consecutive qualifying rows form episodes,
+peak positive rise represents each. Strongest-first suppression keeps peaks
+>=80 ms apart; chronological episodes retain selected/reason flags. No minimum
+sustained duration. Offline lookahead, not streaming. First 40 ms has no candidate
+measurements. Timing is measurement midpoint, not exact physical onset.
+
+New `09_detecting_attacks.ipynb` / `attack_detection_lesson.py`: reuse 08 CSVs,
+check WAV hashes, export all decisions/episodes/settings to ignored
+`outputs/pitch_tracking/personal_2026-11-03/attack_candidates/`. Run 08 before 09
+if outputs missing/stale. P2 check optionally reuses earlier 06/07 measurements.
+Pitch/grouping unchanged; no candidate-driven event assembly yet.
+
+Initial attack results (counts NOT accuracy): baseline 12/14 selected/episodes;
+dynamics 12/16; faster 12/20; CtoA 20/21; fastest 13/17. CtoA selected markers
+visually align with 20 attacks. Earlier P2 excerpt proposes 7.991, 8.471, 8.969 s:
+two repeated A4s plus following G4, whereas pitch-only A4 grouping stayed merged.
+Failures: baseline misses soft E3 entry around 3.3 s, adds an extra later D3
+candidate. Dynamics includes early unwanted sound and misses soft E3 entry.
+Fastest misses E3 entry around 2.05 s and adds late candidates 3.415/4.231 s.
+Max rise ratios in reviewed soft transitions: baseline 3.2–3.45 s ~1.286;
+dynamics 3.5–3.8 s ~1.165; fastest 2.00–2.16 s ~1.195, all below 1.5. Do not lower
+threshold merely to force expected count. No manually timed labels or listening
+by agent, so interpret misses/extras as visual pitch/energy comparison.
+
+32 tests pass, including six new detector checks: no-silence renewed excitation
+versus decay control, zero baseline/noise floor, gain/reference scaling,
+stronger-neighbor suppression/final flush, original bounds/missing measurements,
+invalid inputs. Real audio results are validation evidence distinct from tests.
+No new dependencies. Original WAVs unchanged. No commit/push requested.
+
+Next: user reads 09 sections 2–3; review/annotate a handful of pluck intervals,
+including repeated C and a soft E3. Then choose how pitch and attack evidence
+combine into note events. Do not require accepted pitch at exact attack instant
+(similarity often drops then), and do not lose every pitch change without energy
+rise (legato is real). Possible future spectral-change cue if amplitude alone
+keeps missing soft picks; no immediate ML/chord expansion. Separate onset,
+offset, continuous pitch, event assembly, and string/fret inference. All five
+takes now inspected: use a NEW take for future held-out evaluation.
+
+Asked learning question asynchronously: should reliable pitch be required at
+the attack instant or looked for after an independently detected attack, and
+what is the tradeoff? Await user's reasoning; continue explaining architecture.
+
+## Previous checkpoint — four personal takes analyzed (2026-11-03)
+
+Newest lesson: `08_personal_recordings.ipynb`, generated from the percent-cell
+script `personal_recordings_lesson.py`. Session metadata lives in
+`data/recording_sessions/2026-11-03_personal_takes.json`. User reports neck + middle
+pickup, pretty dry tone, no metronome. Do NOT carry the earlier neck-only/9 o'clock
+gain forward as confirmed for this batch. Gain/export consistency, exact string/
+fret positions, phrase repetitions and repeated C/A counts were asked but are
+still unconfirmed. Four input WAVs are unchanged, 44.1 kHz/16-bit identical-channel
+stereo, finite, with no full-scale samples. Numerical/plot inspection, no listening.
+
+Current pitch estimator, acceptance and grouping unchanged: 100 ms windows,
+20 ms hops, 60–1000 Hz; level >=3x reference, similarity >=.80, adjacent eligible
+estimates within 50 cents. Energy-rise helper remains inspection-only. Do NOT
+describe these groups as attack-detector output. Intended sequence never enters
+prediction. Full files analyzed, no trimming to expected phrase or note snapping.
+
+Reference is provisional: DynamicsAdded 1.2–1.4 s, six complete overlapping
+100 ms windows on original 20 ms grid, median RMS ~0.00002170. User confirmation
+that it was quiet and gains stayed consistent is pending. Other files have
+exact-zero padding; using it as background would create a misleading zero floor.
+Reference calibration remains a limitation, not a universally validated gate.
+
+Results (support spans are window midpoints, NOT exact physical onsets/offsets):
+- Baseline: 232/367 windows pass, 12 groups A3 G3 E3 D3 G3 E3 D3 C3 E3 D3 C3 A2.
+- Faster: 370/441 pass, same 12 groups. First-to-final group starts span 3.28 s
+  versus baseline 4.10 s (~20% shorter); not yet an extreme fast-picking test.
+- Dynamics: 403/515 pass, same phrase plus E2 at 0.81–1.09 s before it. Could be
+  a ringing low string or unwanted periodic sound; review before calling it a
+  false positive. No special threshold change/removal for this example.
+- CtoA: 642/813 pass, 20 groups: 5 C3, 5 A2, 5 C3, 5 A2. This is consistent with
+  visible repeated attacks but actual intended pluck count needs confirmation.
+  Similarity dips/rejected windows split runs; energy cues do NOT cause splits.
+  Prior P2 repeated A4 still demonstrates that repeats can merge in this design.
+No timing accuracy or percent-correct score: no independent timestamp/octave
+labels. Long tails dominate passing-frame counts. All four are development data
+now that inspected. Save a new future take as held-out evaluation.
+
+Outputs: ignored `outputs/pitch_tracking/personal_2026-11-03/` contains four
+overview plots, repeated-C close-up, reference review, per-window/event/energy
+CSVs, and input SHA256 audit. At 44.1 kHz, pitch width/hop=4410/882 samples;
+energy width/history/hop=441/1764/88 samples (2 ms rounded to ~1.995 ms). All
+times derive from original indices. Every accepted frame belongs to one group.
+Validation: five notebook code cells executed, notebook schema valid, plots
+inspected; 2,136 acceptance decisions checked against existing rules, sample
+bounds and sampled RMS/history calculations checked. Input hashes and older
+CSV hashes unchanged. No analysis-core changes or new dependencies.
+
+Next: user reviews notebook 08 and confirms recording details; listen/review
+early Dynamics E2, then annotate a few repeated-pluck onset intervals. Design
+an explicit attack-candidate rule before splitting groups. Do not move directly
+to chords or ML merely because these single-note pitch classes agree. Soft
+attacks may have small absolute rises; don't set a threshold from loud accents.
+Later bends/slides need continuous pitch rather than treating every nearest-note
+change as a new pluck. Pitch alone does not uniquely determine string/fret.
+
+User renewed preferences: challenge assumptions and ask short learning questions
+about architecture/design; explain decisions before piling on code. Keep eventual
+tablature in view. Prefer Medium; no current-thread model-switch tool was exposed
+in this session, so no switch was claimed/performed. Do not spawn another thread
+just to simulate switching. No commit/push requested for this analysis.
+
+## Previous checkpoint — renewed-energy cue implemented (2026-11-03)
+
+User authorized the energy-rise calculation and exploring picking while a note
+is already ringing. Added 07_understanding_attacks.ipynb, attack_lesson.py,
+attack_analysis.py and test_attack_analysis.py. Still a measurement/inspection
+lesson: no attack threshold, automatic attack list or event splitting added.
+
+Pure helper measure_energy_rise: current 10 ms RMS vs median RMS of FOUR prior
+nonoverlapping 10 ms blocks (40 ms history), advanced every 2 ms. History ends
+exactly at current-window start, so no current/future samples enter its baseline.
+Return current RMS, past median, signed change, max(0, change), and RMS ratio;
+zero baseline gives NaN ratio. Raw amplitudes, no silence prerequisite, no MIDI.
+RMS is an amplitude measure, not physical energy. Original sample bounds and
+history bounds retained; plotted midpoint needs audio through window end.
+
+Lesson compares P1/P2 7.8–9.1 s, reading an extra 40 ms of preceding context.
+Each has 646 measurements. P2 largest absolute rise near second A4: 0.021983
+at midpoint 8.471 s, recent RMS 0.000815, ratio 27.99. Ordinary ringing in
+8.1–8.35 s has max rise 0.000229. P1 corresponding rise 0.040869 at 8.491 s;
+ordinary comparison max 0.000487. These are maxima inside reviewed intervals,
+not detected attacks, accuracy scores, or threshold suggestions. Rise magnitudes
+vary with gain; ratios can exaggerate tiny noise over near-zero baselines.
+
+Synthetic illustration (not guitar validation): decaying 440 Hz signal receives
+another in-phase 440 Hz excitation at 0.7 s, ramped over 5 ms; old ringing never
+muted. Same method shows rise 0.055907 over nonzero baseline 0.049037, ratio 2.14;
+the old-ring-only control has zero positive rise in that review interval. Phase-
+aligned addition is deliberately simplified: real re-picking may damp/cancel or
+change timbre without clear RMS growth. Actual no-gap re-picking remains untested.
+
+Outputs under ignored outputs/pitch_tracking: P1/P2_scale_C_energy_rise_7p8-9p1s.csv,
+P1_P2_repeated_A4_energy_rise.png and synthetic_renewed_A4_energy_rise.png. Original
+pitch/event CSV hashes unchanged. Four notebook cells executed directly with
+project Python; schema valid; both plots inspected. All 26 tests pass (5 new
+checks for past-only history, original sample indices, renewed level without
+silence, gain scaling, silence/invalid/partial inputs). No new dependencies.
+
+Next: user reads lesson 07, especially real versus synthetic plots. Then design
+an explicit candidate rule with enough signal, relative/absolute rise, and a
+short separation rule to avoid duplicate attacks; do not require a quiet gap.
+Review candidates before using them to split note groups. Actual quiet/fast
+re-picking may need spectral-change evidence later. No commit/push requested.
+
+### User model-usage preferences (added during this task)
+
+Prefer Astra Medium for roughly 80–90% of development; conserve High usage.
+Reserve High recommendations for complex architecture, difficult debugging,
+advanced ML reasoning, or Medium struggling, and explain the benefit first.
+Do not recommend High for routine implementation/refactoring/UI work. Minimize
+redundant calls, excessive context reads and unnecessary tokens. Near usage
+limits, finish the active task before starting more. Never claim to switch
+models unless the environment supports it; otherwise recommend only as needed.
+
+## Previous checkpoint — repeated A4 waveform plotted (2026-11-03)
+
+User requested P2's repeated waveform. Notebook 06/script now default to
+player='P2', excerpt_seconds=9.3. Added section 7: raw waveform over 7.8–9.1 s,
+10 ms RMS / 2 ms hops alongside existing 100 ms RMS, and a waveform close-up
+8.40–8.56 s. Dashed markers are supplied A4 MIDI starts, not detected attacks.
+These extra energy windows are for inspection ONLY; estimator/filter/grouping
+settings and decisions unchanged. Raw amplitudes preserved, no clip normalization.
+
+Observation: waveform dips around 8.42–8.45 s then rises sharply around 8.46 s,
+while pitch stays near A4. Short-window RMS reveals the dip; old 100 ms RMS
+smooths across it. Renewed energy is a candidate cue for another pluck, not an
+automatically measured onset. MIDI second start ~8.482 s is later than the
+visible rise. Do not tune a threshold or correct timestamps from this example.
+Agent inspected plots/numbers, not listening audio. No attack detector added.
+
+Outputs: P2_scale_C_repeated_A4_waveform.png and
+P2_scale_C_repeated_A4_10ms_rms.csv under ignored outputs/pitch_tracking.
+The inspected interval is original samples [374400:436800] at 48 kHz. 646
+complete energy windows, width 480 samples, hop 96; every RMS/sample bound/
+midpoint checked against original WAV. Eight notebook cells executed directly
+with project Python; schema valid, plot viewed, preexisting CSV hashes unchanged.
+
+Next: review section 7, explain why finer energy windows reveal a new pluck
+despite unchanged pitch. Then compare P1/another transition before designing a
+small explained attack rule. Keep pitch settings fixed. No commit/push requested.
+
+## Previous checkpoint — P1 scale transfer checked; repeated A4 selected (2026-11-03)
+
+User asked to run the P1 transfer and report results before attack detection.
+Parameterized scale_tracking_lesson.py and notebook 06 with player='P1' by
+default; use 'P2' to reproduce prior results. Excerpt defaults to 8 s; output
+filenames now include player and actual duration. Exact original P1/P2 noise
+reference intervals retained. No estimator, threshold or grouping changes.
+Extracted only P1 scale C DI WAV and its MIDI into Downloads/P1_scales.
+
+P1 first 8 s: 396 windows, 316 accepted, 14 evidence groups A2 through G4.
+All 109 guarded interior windows pass and differ <=50 cents from their labels.
+All 14 groups match the 14 labels in pitch order and overlap their intervals;
+no extra fragmentation/neighboring-pitch merging observed in this short excerpt.
+P1 first 0.9 s is exact digital zero and MIDI starts at A2 ~1.023 s, whereas
+P2 contains F2/G2 beforehand. The difference from P2's 16 groups is not two
+missed P1 notes. Reference RMS is 0.0001149 from the same 2 prior P1 windows.
+
+Extended both excerpts to 9.3 s with the same settings to select an attack case:
+- P1 A4 labels 8.007–8.472 and 8.502–8.935 s; evidence groups 7.97–8.41 and
+  8.47–8.91 s. At 8.43 weak repetition rejects; 8.45 waits for predecessor.
+- P2 A4 labels 7.998–8.478 and 8.482–8.933 s; ONE evidence group 7.97–8.91 s,
+  48 accepted windows. Pitch/acceptance stay continuous through the second label.
+This is the concrete next example: P2 C scale, ~7.8–9.1 s, repeated A4. MIDI
+suggests repeated picking; listen/inspect the waveform before claiming exact
+physical attacks. No attack detector or chord separation was implemented.
+
+Notebook final markdown records transfer results and reproduction settings:
+player='P2', excerpt_seconds=9.3, run all cells. Both players' 0–9.3 s windows,
+events and plots saved separately in ignored outputs/pitch_tracking. P2 0–8 s
+window/event CSVs reproduce byte-for-byte after parameterization. P1 carried
+reference exact, 396 bounds/hops and all accepted memberships checked. Seven
+notebook cells executed directly with project Python, schema valid, plot viewed.
+No dependencies added; unchanged core tests weren't needlessly rerun.
+
+At start, Git was clean and main matched cached origin/main after prior commit
+78be7fe (not a fresh remote verification). This transfer is a new uncommitted
+change; user requested a report, not another commit/push.
+
+Next: learn/plot an attack cue for P2's merged A4 pair, keeping pitch thresholds
+fixed. Use P1's already split pair as a useful comparison. Preserve the learning
+pace; avoid broad refactoring, more offset tuning, or moving straight to chords.
+
+## Previous checkpoint — pitch windows grouped into evidence runs (2026-11-03)
 
 Wrap-up: user approved the result and requested a meaningful commit and GitHub
 push for all pending lesson/filter/grouping work. Reviewed the ten changed/new

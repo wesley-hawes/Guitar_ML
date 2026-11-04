@@ -8,25 +8,87 @@ pitch transcription and string/fret assignment are not implemented yet.
 
 ## Current milestone
 
-The newest check is `06_tracking_a_scale.ipynb` (or
-`python scale_tracking_lesson.py`): first 8 seconds of P2's C-scale direct-input
-recording, with unchanged analysis/filter settings. 355/396 windows pass; all
-119 guarded interior windows agree within 50 cents. Windows spanning changes
+The newest lesson is `09_detecting_attacks.ipynb` (or
+`python attack_detection_lesson.py`). It proposes attacks independently of pitch:
+relative RMS rise >=1.5, sufficient level/absolute rise versus the provisional
+noise reference, then strongest-first 80 ms duplicate suppression. These are
+initial heuristics with known misses/extras, not a finished transcription system.
+20 candidates align visually with the confirmed 20 C-to-A plucks; the earlier
+P2 repeated A4 now has two candidates even though pitch grouping merged it.
+Soft transitions can fail: a total of 12 candidates can hide a miss and an extra.
+The notebook exposes decisions, suppressed episodes, and the fastest soft-note
+example. This is offline analysis; peak markers are not exact onsets. Candidates
+do not yet split/assemble note events. All 32 tests pass; no new dependencies.
+
+Run notebook 08 first to generate the measurements used in 09. Fastest now
+produces the intended 12 pitches plus a short unwanted B2 group after the phrase.
+Its first-to-last intended group-start span is ~52% shorter than baseline.
+Next: review a few actual onset intervals and decide how independent pitch and
+attack evidence should combine; don't adjust thresholds to force note counts.
+
+The preceding lesson is `08_personal_recordings.ipynb` (or
+`python personal_recordings_lesson.py`). It runs the unchanged pitch/filter/grouping
+and separate energy-rise measurements on five personal WAVs. Baseline and Faster
+produce the intended 12 pitch classes in order; Dynamics also has a quiet E2
+estimate before the phrase. CtoA produces 20 groups (5 Cs, 5 As, repeated), split
+by rejected pitch windows rather than attack detection. This is an exploratory
+comparison, not a timing/accuracy benchmark. The user confirmed fifth-position
+A3→A2 playing and the repeated C/A counts. The shared quiet reference (Dynamics 1.2–1.4 s) and
+consistent gain remain provisional. No rules were tuned to these takes.
+
+The notebook includes full-file plots, a repeated-C close-up, explicit caveats,
+and architecture questions. Recording setup is in
+`data/recording_sessions/2026-11-03_personal_takes.json`; generated CSVs/plots/audit
+are under ignored `outputs/pitch_tracking/personal_2026-11-03/`.
+Next: review real plucks and design an explicit attack-candidate rule; reserve
+a new recording for evaluation. Current evidence groups are not final tablature.
+
+The preceding lesson is `07_understanding_attacks.ipynb` (or `python attack_lesson.py`).
+It compares current 10 ms RMS to the median of four preceding 10 ms blocks,
+every 2 ms, using the pure helper in `attack_analysis.py`. Real P1/P2 repeats
+show strong rises compared with ordinary ringing. A clearly labeled synthetic
+example adds another excitation while the first tone still rings, demonstrating
+that the cue does not require silence. Ratios can inflate near zero and real
+re-picking need not raise RMS clearly; no attack threshold or event split yet.
+Five focused checks run with `python -m unittest test_attack_analysis -v`;
+all 26 project tests pass. No new dependencies or pitch/grouping changes.
+
+The preceding check is `06_tracking_a_scale.ipynb` (or
+`python scale_tracking_lesson.py`): first 8 seconds of the selected player's
+C-scale direct-input recording, with unchanged analysis/filter settings.
+Set `player = 'P1'` or `'P2'`. The current example is P2 with a 9.3-second
+excerpt to include repeated A4; the following counts describe the initial 8 s.
+P1 has 316/396 passing windows,
+14 evidence groups, and all 109 guarded interior windows within 50 cents.
+P2 has 355/396 passing windows and all 119 interiors within 50 cents.
+Windows spanning changes
 can be unstable; see the D3→E3 close-up and per-window decisions. This does not
 establish accurate attack timing or separation of simultaneous ringing notes.
-The scale has no quiet opening; its level reference is explicitly carried from
-P2's single-note recording, not measured as the scale's own noise floor.
-Keep the selected WAV/MIDI under `~/Downloads/P2_scales` (see notebook for paths).
+The level reference is explicitly carried from each player's single-note
+recording, not measured as the scale's own noise floor. P1 starts with digital
+silence and A2; P2 includes two earlier notes, explaining their group-count difference.
+Keep the selected WAV/MIDI under `~/Downloads/P1_scales` or `P2_scales` (see notebook).
 No new dependencies; raw/accepted candidates and all MIDI labels remain visible.
 
 Sections 5–6 now group accepted windows into note-evidence runs using
 `note_events.group_pitch_windows`. Consecutive windows with the same nearest
 note are joined; rejected/missing windows split runs and gaps stay visible.
-The scale produces 16 runs from all 355 accepted windows. Bars span supporting
+P2 produces 16 runs from all 355 accepted windows. Bars span supporting
 window midpoints, not physical note start/end times. Median Hz and exact source
 sample bounds are exported separately in `P2_scale_C_0-8s_note_evidence.csv`.
 Repeated same-pitch plucks may merge without attack detection; no MIDI labels
 enter grouping. Run `python -m unittest test_note_events -v` for its six tests.
+
+Next attack example: set `player = 'P2'`, `excerpt_seconds = 9.3`, then run all
+cells and inspect ~7.8–9.1 s. Two A4 MIDI labels become one continuous evidence
+group (7.97–8.91 s); P1's corresponding pair splits because of rejected windows.
+Player/duration-tagged outputs preserve both runs. No attack detector added yet.
+
+Section 7 plots that repeated-A4 waveform, 10 ms RMS with 2 ms hops alongside
+the existing 100 ms RMS, and a close-up around the second label. The finer
+energy view exposes a dip then rise around 8.46 s even though pitch stays A4.
+This is inspection only: no threshold or attack rule is applied. The saved plot
+is `outputs/pitch_tracking/P2_scale_C_repeated_A4_waveform.png`.
 
 The preceding check is `05_checking_more_audio.ipynb` (or
 `python broader_pitch_check.py`). It compares 0–30 seconds of P1/P2 with the
