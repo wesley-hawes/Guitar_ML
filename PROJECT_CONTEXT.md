@@ -4,6 +4,96 @@ Last updated: 2026-11-03. Read this alongside README.md and the actual code.
 Verify the current files and Git status before making changes; this document is
 a checkpoint, not a substitute for inspecting the project.
 
+## Current: integrated detection and note-entry table (2026-11-04)
+
+User authorized integrating quieter detection and producing the table, while
+keeping MVP scope and avoiding corrections for every outlier. Added
+`event_detection.py/build_note_events`, `note_event_pipeline.py`, notebook 11,
+and five tests. Existing rise-only detector/notebook 09 stays reproducible.
+The primary README workflow is now 08 -> 11 (or personal_recordings_lesson.py
+then note_event_pipeline.py). No need to run 09/10 first: integration calls both
+helpers directly on 08 measurements. No frequency or original rise gates changed.
+
+Algorithm: preserve one entry per pitch group; assign selected rises to nearest
+group start within 100 ms (existing pitch-window duration). Consolidate multiple
+start cues; strongest rise timing wins over drop timing, with both reasons kept.
+A rise outside that tolerance but inside a group proposes a flagged same-pitch
+repeat. Unsupported rises remain in audit, not invented pitched rows. Preserve
+pitch-only notes with uncertain starts. End seconds are blank; evidence spans
+are not durations and repeats can share them. Never append every fall as an
+extra note. Labels/expected counts never enter assembly.
+
+Outputs: ignored personal_2026-11-03/note_events/{id}_events.csv, {id}_audit.json,
+and combined note_events.md. Tables have approximate start, note, frequency,
+source indices, reason, and review_repeat flag. Current event counts baseline13,
+dynamics13, faster12, CtoA20, fastest13. Baseline contains a flagged extra D3 at
+5.010 s from the preexisting false-rise candidate. Early Dynamics E2 and late
+Fastest B2 persist. Faster E3 at1.970 remains pitch-only. Quieter E3 entries have
+new drop timing evidence: baseline3.238, dynamics3.551, fastest2.026. Do NOT claim
+improved overall accuracy or fully correct transcription. The new table exposes
+errors rather than hardcoding exceptions. Association tolerance can misassign
+fast close attacks; group fragmentation and wrong pitch groups propagate.
+
+41 tests pass. Integration checks quieter entries, rise+drop deduplication,
+within-group repeats, retention of pitch-only notes, unsupported rises, invalid
+order/rate/settings. Real P2 late excerpt yields A4 7.991 and A4 8.471 (flagged
+repeat), then G4 8.969, preserving the motivating repeated-note case. Notebook11
+executed, earlier output CSV hashes preserved. No new dependencies. No commit/push.
+
+Next: test this fixed MVP on a NEW recording, annotate intended notes/repeats
+separately, review misses/extras per event. Avoid adding a rule merely to remove
+baseline D3 or tail B2. End-time estimation and more reliable repeat verification
+remain future work. Existing presentation edits are still uncommitted.
+
+## Latest: quieter-entry comparison (2026-11-04)
+
+User wants an MVP, minimal rules, no tuning to individual outliers. Added
+quieter_transitions.py/find_quieter_entries, compare_quieter_entries.py,
+10_quieter_note_entries.ipynb, and four tests. Old pitch/attack algorithms unchanged.
+Supplement: different adjacent pitch groups with <=100 ms gap plus a sharp RMS
+fall within 100 ms before new group evidence. Reuse 1.5 ratio (past/current)
+and 3x reference floors; retain actual sample bounds. Comparisons use rounded
+sample distances to avoid excluding a nominal 100 ms gap due to float error.
+No expected notes, filenames, or desired counts enter the helper.
+
+Finds the previously missed G3→E3 entry: fastest ~2.026 s, baseline ~3.238 s,
+dynamics ~3.551 s. Fixed rule applied across all five files. Reviewed faster
+4.5–6.5 s decay and fastest 3.15–3.65 s apparent stop have no added proposals.
+This is changed-pitch plus level-drop evidence, NOT proof of a picked attack or
+precise onset. Some drops precede louder entries (muting before the next note).
+Same-pitch quiet re-picks remain unresolved. Wrong pitch groups can propagate.
+Reference calibration remains provisional; these are inspected development takes.
+
+36 tests pass, including synthetic quieter-tone transitions at 44.1/48 kHz and
+scaled gains, gradual decay, stop/same-pitch/long-gap behavior, exact-gap boundary.
+Three notebook code cells executed; old output CSV hashes unchanged. No listening
+or hand-timed labels by agent. Outputs under ignored personal_2026-11-03/quieter_entries.
+Next: inspect notebook 10, then minimal event assembly using both existing rise
+candidates and pitch-transition evidence, with deduplication and explicit reasons.
+Do not just append all proposals as additional notes. Evaluate on a NEW take
+before declaring robustness. No commit/push requested; presentation edits remain.
+
+## Presentation audit — current documentation entry points
+
+README.md was subsequently shortened at the user's request: plain-language
+overview of what the program does, how pitch and attacks differ, current limits,
+and the path to tabs. Detailed architecture, equations, and validation moved
+to docs/technical-design.md. Keep the README approachable; do not expand it back
+into the technical reference. docs/experiments.md indexes all nine experiments, explains
+module roles/external-data prerequisites, and records diagnostic provenance.
+The former README is preserved in docs/archive/2026-11-03-development-notes.md;
+its historical next steps must not be read as current state. A freshly generated
+soft-transition diagnostic is published in docs/assets/fastest-soft-transition.png.
+
+No Python, notebooks, input audio, session parameters, requirements, imports, or
+algorithm behavior changed. Executable files remain at the root to preserve
+working-directory assumptions; no cosmetic script/notebook renaming. All 32
+tests passed on Python 3.13.9. The README's two headless scripts also passed in
+an isolated copy with no prior outputs/external files; optional P2 was skipped.
+This verifies the included-data route using the existing environment, not a
+fresh network dependency installation. Documentation edits are not committed
+or pushed as part of this presentation task; inspect Git status before publishing.
+
 ## Resume here — first attack detector and Fastest take (2026-11-03)
 
 User confirms fifth-position A minor pentatonic from D-string A to low-E A,
